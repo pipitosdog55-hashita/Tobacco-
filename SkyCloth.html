@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="ru" class="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<title>Sky.Cloth — Магазин одежды</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+tailwind.config={darkMode:"class",theme:{extend:{colors:{brand:{50:"#f0f9ff",100:"#e0f2fe",200:"#bae6fd",300:"#7dd3fc",400:"#38bdf8",500:"#0ea5e9",600:"#0284c7",700:"#0369a1",800:"#075985",900:"#0f172a",950:"#020617"},ink:{50:"#fafafa",100:"#f4f4f5",200:"#e4e4e7",300:"#d4d4d8",400:"#a1a1aa",500:"#71717a",600:"#52525b",700:"#3f3f46",800:"#27272a",900:"#18181b",950:"#09090b"}},fontFamily:{sans:["Outfit","sans-serif"],display:["Instrument Serif","serif"]}}}}
+</script>
+<style>
+:root{--bg:#fafafa;--card:#fff;--text:#18181b;--muted:#71717a;--border:#e4e4e7}
+.dark{--bg:#09090b;--card:#18181b;--text:#fafafa;--muted:#a1a1aa;--border:#27272a}
+body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;transition:background .3s,color .3s;overscroll-behavior:none;overscroll-behavior-x:none;touch-action:pan-y}
+html{overscroll-behavior:none;overscroll-behavior-y:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:none;height:100%}
+.ad-slot{border:1px dashed var(--border);border-radius:20px;min-height:160px;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--card) 90%,#38bdf8 8%);color:var(--muted);font-size:12px;letter-spacing:.12em;text-transform:uppercase;overflow:hidden;position:relative}
+.ad-slot img,.ad-slot video{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.ad-slot .ad-label{position:absolute;top:8px;left:10px;font-size:9px;background:rgba(0,0,0,.55);color:#fff;padding:3px 8px;border-radius:6px;letter-spacing:.08em;z-index:2}
+.ad-slot.has-ad{border-style:solid;cursor:pointer}
+.ad-slot.ad-hidden{display:none!important}
+.ad-slot.ad-tall{min-height:220px}
+.welcome-fade{transition:opacity .7s ease,visibility .7s ease}
+.welcome-fade.out{opacity:0;visibility:hidden;pointer-events:none}
+.hidden{display:none!important;pointer-events:none!important}
+#welcome-splash.hidden,#auth-m.hidden,#rank-modal.hidden{display:none!important;pointer-events:none!important}
+#welcome-splash{pointer-events:auto}
+header,main,footer,button,a{position:relative;z-index:1}
+header{z-index:50}
+#chat-widget{z-index:90}
+
+.font-display{font-family:"Instrument Serif",serif}
+.card{background:var(--card);border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.product-card{transition:transform .25s,box-shadow .25s}.product-card:hover{transform:translateY(-4px);box-shadow:0 12px 24px rgba(245,158,11,.15)}
+.glass-header{background:color-mix(in srgb,var(--card) 88%,transparent);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+#map{height:230px;border-radius:14px;z-index:1}
+.size-btn.active{border-color:#38bdf8;background:rgba(245,158,11,.15);color:#0ea5e9}
+.tab-active{border-bottom:2px solid #38bdf8;color:#d97706;font-weight:600}
+input,textarea,select{background:var(--card)!important;color:var(--text)!important;border-color:var(--border)!important}
+.avatar-circle{background:linear-gradient(135deg,#0ea5e9,#38bdf8)}
+.hero-gradient{background:linear-gradient(135deg,#0c4a6e,#0369a1,#0ea5e9,#38bdf8)}
+.dark .hero-gradient{background:linear-gradient(135deg,#09090b,#0c4a6e,#0369a1,#0ea5e9)}
+.btn-primary{background:linear-gradient(135deg,#0ea5e9,#38bdf8);color:#fff;box-shadow:0 4px 14px rgba(245,158,11,.35)}
+.btn-sky:hover{filter:brightness(1.08);box-shadow:0 6px 18px rgba(245,158,11,.4)}
+.flavor-btn{transition:all .15s}.flavor-btn.active{border-color:#38bdf8;background:rgba(245,158,11,.15);color:#0ea5e9;font-weight:600}
+.ss-modal{position:fixed;inset:0;z-index:120;background:rgba(0,0,0,.85);display:flex;align-items:center;justify-content:center;padding:16px}
+.ss-modal img{max-width:100%;max-height:90vh;border-radius:12px;object-fit:contain}
+.order-pending{border-left:4px solid #38bdf8}
+.order-confirmed{border-left:4px solid #22c55e}
+.order-rejected{border-left:4px solid #ef4444}
+.rank-bronze{background:linear-gradient(135deg,#cd7f32,#a05a2c)}
+.rank-silver{background:linear-gradient(135deg,#c0c0c0,#a8a8a8);color:#222}
+.rank-gold{background:linear-gradient(135deg,#ffd700,#f0c000);color:#222}
+.rank-platinum{background:linear-gradient(135deg,#e5e4e2,#b9b8b5);color:#222}
+.rank-diamond{background:linear-gradient(135deg,#b9f2ff,#89cff0);color:#0c4a6e}
+.rank-elite{background:linear-gradient(135deg,#a855f7,#7c3aed)}
+.star{color:#fbbf24}.star-empty{color:#d4d4d8}
+.sale-badge{position:absolute;top:8px;left:8px;background:#ef4444;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;z-index:2}
+.toast-show{transform:translateY(0)!important;opacity:1!important}
+body.is-admin .public-only{display:none!important}
+body.is-admin .admin-bar{display:flex!important}
+.admin-bar{display:none}
+
+.admin-panel-title{letter-spacing:-0.02em}
+.product-card{border-radius:1rem}
+.btn-primary{border-radius:0.85rem}
+#view-admin .card{border-radius:1rem}
+.cat-chip{transition:all .2s}
+.cat-chip:hover{transform:translateY(-2px)}
+/* TRI-COLOR THEME */
+
+:root{
+  --bg:#f8fafc;--card:#ffffff;--text:#0f172a;--muted:#64748b;--border:#e2e8f0;
+  --c1:#0f172a;--c2:#0ea5e9;--c3:#f43f5e;
+}
+.dark{
+  --bg:#0b1220;--card:#111827;--text:#f1f5f9;--muted:#94a3b8;--border:#1e293b;
+}
+body{font-family:Outfit,sans-serif;background:var(--bg);color:var(--text);touch-action:pan-y}
+.card{background:var(--card);border:1px solid var(--border);box-shadow:0 1px 3px rgba(15,23,42,.06)}
+.btn-primary{background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;box-shadow:0 4px 14px rgba(14,165,233,.35);border-radius:.85rem}
+.btn-primary:hover{filter:brightness(1.06)}
+.btn-accent{background:linear-gradient(135deg,#f43f5e,#e11d48);color:#fff}
+.avatar-circle{background:linear-gradient(135deg,#0f172a,#0ea5e9)}
+.hero-gradient{background:linear-gradient(135deg,#0f172a 0%,#0369a1 45%,#0ea5e9 100%)}
+.dark .hero-gradient{background:linear-gradient(135deg,#020617,#0f172a,#0369a1)}
+.star{color:#f43f5e}.star-empty{color:#cbd5e1}
+.sale-badge{position:absolute;top:8px;left:8px;background:#f43f5e;color:#fff;font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px;z-index:2}
+.flavor-btn.active,.size-btn.active{border-color:#0ea5e9!important;background:rgba(14,165,233,.12)!important;color:#0369a1!important;font-weight:600}
+.tab-active{border-bottom:2px solid #0ea5e9;color:#0369a1;font-weight:600}
+.text-accent{color:#f43f5e}
+.bg-accent{background:#f43f5e}
+.ring-brand{box-shadow:0 0 0 2px rgba(14,165,233,.4)}
+.product-card{border-radius:1rem;overflow:hidden}
+.product-card:hover{transform:translateY(-4px);box-shadow:0 12px 28px rgba(15,23,42,.1)}
+header{backdrop-filter:blur(12px);background:rgba(248,250,252,.85)}
+.dark header{background:rgba(11,18,32,.85)}
+
+</style>
+</head>
+<body>
+<!-- Welcome splash -->
+<div id="welcome-splash" class="fixed inset-0 z-[200] hidden items-center justify-center hero-gradient text-white text-center px-6 welcome-fade" ontouchmove="event.preventDefault()">
+<div class="welcome-inner">
+<p class="text-sm uppercase tracking-[0.3em] opacity-80 mb-3">Sky.Cloth</p>
+<h1 class="font-display text-4xl md:text-6xl mb-4">Добро пожаловать</h1>
+<p class="text-lg md:text-xl opacity-95 max-w-md mx-auto mb-2">в Sky.Cloth</p>
+<p class="text-sm opacity-75">Женское · Мужское · Обувь · Сумки</p>
+</div>
+</div>
+<header class="glass-header sticky top-0 z-50">
+<div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-2">
+<div class="flex items-center gap-2 cursor-pointer" onclick="isAdmin?showView('admin'):showView('home')">
+<span class="font-display text-xl">Sky<span class="text-sky-600">.Cloth</span>
+<span id="admin-badge" class="hidden" style="display:none" class="hidden text-[10px] bg-sky-600 text-white px-2 py-0.5 rounded-full">Админ</span>
+</div>
+<nav class="hidden md:flex items-center gap-5 text-sm font-medium public-only">
+<button onclick="showView('home')" class="hover:text-sky-600">Главная</button>
+<button onclick="filterCategory('all')" class="hover:text-sky-600">Каталог</button>
+</nav>
+<!-- Admin top bar -->
+<div class="admin-bar items-center gap-1 text-sm overflow-x-auto">
+</div>
+<div class="flex items-center gap-1.5">
+<button onclick="toggleTheme()" class="p-2 rounded-full hover:bg-ink-100 dark:hover:bg-ink-800">
+<svg class="w-5 h-5 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+<svg class="w-5 h-5 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+</button>
+<button onclick="openAuthOrProfile()" class="flex items-center gap-1.5 p-1 rounded-full hover:bg-ink-100 dark:hover:bg-ink-800">
+<div class="w-8 h-8 rounded-full avatar-circle flex items-center justify-center text-white text-xs font-bold overflow-hidden relative">
+<span id="h-letter">?</span><img id="h-img" class="w-full h-full object-cover hidden absolute inset-0">
+</div>
+<span id="h-label" class="hidden sm:block text-sm max-w-[80px] truncate">Войти</span>
+</button>
+<button onclick="showView('cart')" class="relative p-2 rounded-full hover:bg-ink-100 dark:hover:bg-ink-800 public-only">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"/></svg>
+<span id="cart-count" class="absolute -top-0.5 -right-0.5 bg-sky-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center hidden">0</span>
+</button>
+<button id="mob-btn" class="md:hidden p-2 rounded-full public-only" onclick="document.getElementById('mob-menu').classList.toggle('hidden')">
+<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+</div>
+</div>
+<div id="mob-menu" class="hidden md:hidden border-t card public-only">
+<div class="px-4 py-2 space-y-1 text-sm">
+<button onclick="showView('home');closeMob()" class="block w-full text-left py-2">Главная</button>
+<button onclick="filterCategory('all');closeMob()" class="block w-full text-left py-2">Каталог</button>
+<button onclick="filterCategory('women');closeMob()" class="block w-full text-left py-2">Женская одежда</button>
+<button onclick="filterCategory('men');closeMob()" class="block w-full text-left py-2">Мужская одежда</button>
+<button onclick="filterCategory('shoes');closeMob()" class="block w-full text-left py-2">Обувь</button>
+<button onclick="filterCategory('bags');closeMob()" class="block w-full text-left py-2">Сумки</button>
+<button onclick="filterCategory('accessories');closeMob()" class="block w-full text-left py-2">Аксессуары</button>
+<button onclick="openAuthOrProfile();closeMob()" class="block w-full text-left py-2 text-sky-600">Профиль</button>
+</div>
+</div>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 py-6">
+<!-- HOME -->
+<div id="view-home">
+<section class="relative rounded-3xl overflow-hidden mb-6 hero-gradient text-white shadow-xl">
+<div class="absolute inset-0 opacity-15 bg-[url('https://images.unsplash.com/photo-1441984904996-e0b692d4d8f9?w=1200')] bg-cover bg-center"></div>
+<div class="relative px-6 py-20 md:py-24 text-center">
+<p class="text-sm uppercase tracking-[0.2em] mb-2 opacity-90">Tobacco Shop</p>
+<h1 class="font-display text-4xl md:text-6xl mb-4">Sky.Cloth</h1>
+<p class="text-base md:text-lg opacity-95 max-w-lg mx-auto mb-2">Электронки, сигареты и снюс.<br>Большой выбор · Доставка по городу</p>
+<p class="text-sm opacity-90 mb-8 inline-flex items-center gap-2 bg-black/25 px-4 py-1.5 rounded-full">18+ · Только для совершеннолетних</p>
+<button onclick="filterCategory('all')" class="bg-white text-ink-900 px-8 py-3 rounded-full font-semibold hover:scale-105 transition shadow-lg">Смотреть каталог</button>
+</div>
+</section>
+<div class="ad-slot ad-tall mb-8" data-ad="home-top"><span class="ad-label">Реклама</span><span>Место для рекламы</span></div>
+<div id="home-extra-ads" class="space-y-6 mb-8"></div>
+<div id="news-banner" class="mb-10 card rounded-2xl p-4 border border-sky-200 dark:border-sky-800">
+<div class="flex items-start gap-3">
+<span class="text-xl">📰</span>
+<div class="flex-1 min-w-0">
+<p class="text-xs uppercase tracking-wider text-brand-600 dark:text-brand-400 font-semibold mb-1.5">Новости и акции</p>
+<div id="news-list" class="space-y-1.5 text-sm"></div>
+</div>
+</div>
+</div>
+<section class="mb-12">
+<h2 class="font-display text-2xl mb-6 text-center">Категории</h2>
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 md:gap-4">
+<button type="button" onclick="filterCategory('women')" class="group relative aspect-[3/4] rounded-2xl overflow-hidden shadow-lg"><img src="https://images.unsplash.com/photo-1483985988355-763728e1935b?w=400&h=500&fit=crop" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt=""><div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4"><span class="text-white font-semibold">Женская</span></div></button>
+<button type="button" onclick="filterCategory('men')" class="group relative aspect-[3/4] rounded-2xl overflow-hidden shadow-lg"><img src="https://images.unsplash.com/photo-1490578474895-699cd4e2cf59?w=400&h=500&fit=crop" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt=""><div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4"><span class="text-white font-semibold">Мужская</span></div></button>
+<button type="button" onclick="filterCategory('shoes')" class="group relative aspect-[3/4] rounded-2xl overflow-hidden shadow-lg"><img src="https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=400&h=500&fit=crop" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt=""><div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4"><span class="text-white font-semibold">Обувь</span></div></button>
+<button type="button" onclick="filterCategory('bags')" class="group relative aspect-[3/4] rounded-2xl overflow-hidden shadow-lg"><img src="https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=400&h=500&fit=crop" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt=""><div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4"><span class="text-white font-semibold">Сумки</span></div></button>
+<button type="button" onclick="filterCategory('accessories')" class="group relative aspect-[3/4] rounded-2xl overflow-hidden shadow-lg col-span-2 md:col-span-1"><img src="https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=400&h=500&fit=crop" class="w-full h-full object-cover group-hover:scale-105 transition duration-500" alt=""><div class="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent flex items-end p-4"><span class="text-white font-semibold">Аксессуары</span></div></button>
+</div>
+
+</section>
+<section>
+<div class="flex justify-between items-center mb-5"><h2 class="font-display text-2xl">Популярное</h2><button onclick="filterCategory('all')" class="text-sm text-sky-600">Все →</button></div>
+<div id="featured" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+</section>
+<div class="ad-slot ad-tall mt-10" data-ad="home-bottom"><span class="ad-label">Реклама</span><span>Место для рекламы</span></div>
+<div id="home-bottom-extra-ads" class="space-y-6 mt-6"></div>
+</div>
+
+<!-- CATALOG -->
+<div id="view-catalog" class="hidden">
+<div id="cat-picker" class="hidden mb-8">
+<h1 class="font-display text-2xl mb-4" id="picker-title">Выберите</h1>
+<div class="grid grid-cols-2 gap-4 max-w-md" id="picker-btns"></div>
+</div>
+<div id="cat-main">
+<div class="flex flex-col sm:flex-row justify-between gap-3 mb-6">
+<div><h1 class="font-display text-2xl" id="cat-title">Каталог</h1><p class="text-sm text-[var(--muted)]" id="cat-count">0</p></div>
+<select id="sort" onchange="renderCatalog()" class="rounded-xl px-3 py-2 text-sm border"><option value="default">По умолчанию</option><option value="price-asc">Цена ↑</option><option value="price-desc">Цена ↓</option><option value="rating">Рейтинг</option></select>
+</div>
+<div id="cat-grid" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+<div class="ad-slot ad-tall mt-8" data-ad="catalog"><span class="ad-label">Реклама</span><span>Место для рекламы</span></div>
+<div id="catalog-extra-ads" class="space-y-6 mt-6"></div>
+</div>
+</div>
+
+<!-- PRODUCT -->
+<div id="view-product" class="hidden">
+<button onclick="goBack()" class="text-sm text-[var(--muted)] mb-4 flex items-center gap-1">← Назад</button>
+<div id="prod-detail" class="grid md:grid-cols-2 gap-8"></div>
+<div class="mt-10 card rounded-2xl p-5">
+<h2 class="font-semibold mb-3">Отзывы</h2>
+<div id="reviews" class="space-y-3 mb-4"></div>
+<div id="review-form" class="hidden border-t pt-4">
+<p class="text-xs text-[var(--muted)] mb-1">Оценка 1–5 ★</p><div class="flex gap-1 mb-2 flex-wrap" id="star-btns"></div>
+<textarea id="rev-text" rows="2" class="w-full border rounded-xl px-3 py-2 text-sm mb-2" placeholder="Комментарий"></textarea>
+<button onclick="sendReview()" class="btn-primary px-4 py-2 rounded-xl text-sm">Отправить</button>
+</div>
+<p id="rev-hint" class="text-sm text-[var(--muted)]">Войдите, чтобы оставить отзыв</p>
+</div>
+</div>
+
+<!-- CART -->
+<div id="view-cart" class="hidden">
+<h1 class="font-display text-2xl mb-6">Корзина</h1>
+<div id="cart-empty" class="hidden text-center py-16 text-[var(--muted)]">Пусто · <button onclick="filterCategory('all')" class="text-sky-600">В каталог</button></div>
+<div id="cart-items" class="space-y-3 mb-6"></div>
+<div id="cart-sum" class="card rounded-2xl p-5 max-w-md ml-auto hidden">
+<div class="flex justify-between mb-1"><span>Товары</span><span id="c-sub">0</span></div>
+<div class="flex justify-between text-sm text-[var(--muted)] mb-1"><span>Доставка</span><span>от 25 000 · при получении</span></div>
+<div id="c-rank-row" class="flex justify-between text-sm text-green-600 hidden"><span>Скидка ранга</span><span id="c-rank">0</span></div>
+<div id="c-order-row" class="flex justify-between text-sm text-green-600 hidden"><span>Скидка за сумму</span><span id="c-order">0</span></div>
+<div id="c-first-row" class="flex justify-between text-sm text-green-600 hidden"><span>Первый заказ</span><span id="c-first">0</span></div>
+<div id="c-ref-row" class="flex justify-between text-sm text-green-600 hidden"><span>Реферальная</span><span id="c-ref">0</span></div>
+<div id="c-bonus-row" class="flex justify-between text-sm text-green-600 hidden"><span>Бонус за друга</span><span id="c-bonus">0</span></div>
+<div id="c-promo-row" class="flex justify-between text-sm text-green-600 mb-3 hidden"><span>Промокод</span><span id="c-promo">0</span></div>
+<div class="flex justify-between text-lg font-semibold border-t pt-3 mb-4"><span>Итого</span><span id="c-total" class="text-sky-600">0</span></div>
+<button onclick="startCheckout()" class="w-full btn-sky py-3 rounded-xl font-semibold">Оформить</button>
+</div>
+</div>
+
+<!-- CHECKOUT -->
+<!-- checkout -->
+<div id="view-checkout" class="hidden">
+<button type="button" onclick="showView('cart')" class="text-sm text-[var(--muted)] mb-4">← Корзина</button>
+<h1 class="font-display text-2xl mb-2">Оформление заказа</h1>
+
+<div class="space-y-4 max-w-xl mx-auto lg:max-w-none lg:grid lg:grid-cols-5 lg:gap-6 lg:space-y-0">
+<div class="lg:col-span-3 space-y-4">
+<div class="card rounded-2xl p-4 space-y-3">
+<div class="flex items-center gap-2 mb-1"><span class="w-6 h-6 rounded-full bg-sky-600 text-white text-xs flex items-center justify-center font-bold">1</span><h2 class="font-semibold">Куда доставить</h2></div>
+<div class="grid grid-cols-2 gap-2 mb-2">
+<label class="flex gap-2 p-3 border rounded-xl cursor-pointer has-[:checked]:border-sky-600 has-[:checked]:bg-sky-50 dark:has-[:checked]:bg-sky-950"><input type="radio" name="del" value="courier" checked onchange="updCheckout()"><div><div class="text-sm font-medium">Курьер</div><div class="text-xs text-[var(--muted)]">от 25 000 · при получении</div></div></label>
+<label class="flex gap-2 p-3 border rounded-xl cursor-pointer has-[:checked]:border-sky-600 has-[:checked]:bg-sky-50 dark:has-[:checked]:bg-sky-950"><input type="radio" name="del" value="pickup" onchange="updCheckout()"><div><div class="text-sm font-medium">Самовывоз</div><div class="text-xs text-[var(--muted)]">Бесплатно</div></div></label>
+</div>
+<input id="addr" class="w-full border rounded-xl px-3 py-2.5 text-sm" placeholder="Улица, дом, ориентир *" onkeydown="if(event.key==='Enter'){event.preventDefault();geocodeAddress()}">
+<div class="flex flex-wrap gap-2">
+<button type="button" onclick="geocodeAddress()" class="text-xs bg-sky-600 text-white px-3 py-1.5 rounded-lg">📍 Найти адрес</button>
+<button type="button" onclick="useMyLocation()" class="text-xs border px-3 py-1.5 rounded-lg">Моя геолокация</button>
+<a id="gmaps-link" href="https://yandex.uz/maps/10335/tashkent/" target="_blank" class="text-xs text-sky-600 px-2 py-1.5">Открыть карту →</a>
+</div>
+<div id="map" class="border mt-1" style="height:300px;border-radius:16px;z-index:1"></div>
+<p class="text-xs text-[var(--muted)]">Нажмите на карту, чтобы поставить точку</p>
+<input type="hidden" id="dlat"><input type="hidden" id="dlng">
+</div>
+<div class="card rounded-2xl p-4 space-y-3">
+<div class="flex items-center gap-2 mb-1"><span class="w-6 h-6 rounded-full bg-sky-600 text-white text-xs flex items-center justify-center font-bold">2</span><h2 class="font-semibold">Контакты</h2></div>
+<input id="cname" class="w-full border rounded-xl px-3 py-2.5 text-sm" placeholder="Имя *">
+<input id="cphone" type="tel" class="w-full border rounded-xl px-3 py-2.5 text-sm" value="+998 " oninput="fmtPhone(this)" placeholder="Телефон *">
+<input id="ctg" type="text" class="w-full border rounded-xl px-3 py-2.5 text-sm" placeholder="Telegram @username * (из TG)">
+<textarea id="ccomment" rows="2" class="w-full border rounded-xl px-3 py-2.5 text-sm" placeholder="Комментарий к заказу (необязательно)"></textarea>
+</div>
+</div>
+<div class="lg:col-span-2 space-y-4">
+<div class="card rounded-2xl p-4">
+<div class="flex items-center gap-2 mb-3"><span class="w-6 h-6 rounded-full bg-sky-600 text-white text-xs flex items-center justify-center font-bold">3</span><h2 class="font-semibold">Оплата</h2></div>
+<p class="text-sm text-[var(--muted)] mb-3">Переведите сумму на карту и прикрепите скриншот</p>
+<div class="bg-gradient-to-br from-ink-900 to-ink-800 text-white rounded-xl p-4 mb-3">
+<p class="text-xs opacity-70" id="pay-card-name">Uzcard / Humo</p>
+<p class="font-mono text-xl font-semibold tracking-wide" id="pay-card">8600 3129 8475 2031</p>
+<button type="button" onclick="copyCard()" class="mt-2 text-xs bg-white/15 hover:bg-white/25 px-3 py-1.5 rounded-lg">Скопировать</button>
+</div>
+<label class="block text-sm mb-1">Скриншот оплаты</label>
+<input type="file" id="sshot" accept="image/*" class="w-full text-sm mb-2">
+<div id="ss-prev" class="hidden"><img id="ss-img" class="max-h-28 rounded-lg border"></div>
+<div class="mt-3">
+<label class="text-sm font-medium mb-1 block">Промокод</label>
+<div class="flex gap-2">
+<input id="promo-input" class="flex-1 border rounded-xl px-3 py-2 text-sm uppercase" placeholder="Код" oninput="this.value=this.value.toUpperCase()">
+<button type="button" onclick="applyPromo()" class="border px-3 py-2 rounded-xl text-sm">OK</button>
+</div>
+<p id="promo-msg" class="text-xs mt-1 text-[var(--muted)]"></p>
+</div>
+</div>
+<div class="card rounded-2xl p-4 sticky top-20">
+<p class="text-xs text-[var(--muted)] mb-2">Ваш заказ</p>
+<div id="chk-items" class="text-sm space-y-1 mb-3 max-h-32 overflow-y-auto"></div>
+<div class="text-sm space-y-1 border-t pt-2">
+<div class="flex justify-between"><span>Товары</span><span id="chk-sub">0</span></div>
+<div class="flex justify-between"><span>Доставка</span><span id="chk-del">от 25 000</span></div>
+<div id="chk-promo-row" class="flex justify-between text-green-600 hidden"><span>Промокод</span><span id="chk-promo">0</span></div>
+<div id="chk-rank-row" class="flex justify-between text-green-600 hidden"><span>Скидка ранга</span><span id="chk-rank">0</span></div>
+<div id="chk-order-row" class="flex justify-between text-green-600 hidden"><span>Скидка за сумму</span><span id="chk-order">0</span></div>
+</div>
+<div class="flex justify-between font-semibold text-lg mt-2 pt-2 border-t"><span>К оплате</span><span id="chk-total" class="text-sky-600">0</span></div>
+<button type="button" onclick="submitOrder()" class="w-full btn-sky py-3.5 rounded-xl font-semibold text-lg mt-4">Подтвердить заказ</button>
+</div>
+</div>
+</div>
+</div>
+
+<!-- SUCCESS -->
+<div id="view-success" class="hidden text-center py-14">
+<div class="w-16 h-16 rounded-full bg-brand-100 dark:bg-brand-900 flex items-center justify-center mx-auto mb-4"><span class="text-3xl">✓</span></div>
+<h1 class="font-display text-2xl mb-2">Заказ отправлен!</h1>
+<p class="text-[var(--muted)] mb-6" id="ok-msg">Спасибо</p>
+<button onclick="showView('profile')" class="btn-primary px-6 py-2.5 rounded-xl">В профиль</button>
+</div>
+
+<!-- PROFILE -->
+<div id="view-profile" class="hidden">
+<div class="flex flex-col sm:flex-row gap-5 mb-6">
+<div class="relative">
+<div class="w-20 h-20 rounded-full avatar-circle flex items-center justify-center text-white text-2xl font-bold overflow-hidden relative">
+<span id="p-letter">?</span><img id="p-img" class="w-full h-full object-cover hidden absolute inset-0">
+</div>
+<label class="absolute bottom-0 right-0 w-7 h-7 bg-sky-600 rounded-full flex items-center justify-center cursor-pointer text-white text-xs">📷<input type="file" accept="image/*" class="hidden" onchange="chgAvatar(event)"></label>
+</div>
+<div>
+<div class="flex flex-wrap items-center gap-2 mb-1"><h1 class="font-display text-2xl" id="p-name">Профиль</h1><span id="p-rank" class="px-2.5 py-0.5 rounded-full text-xs font-bold text-white"></span></div>
+<p class="text-[var(--muted)] text-sm" id="p-phone"></p>
+<p class="text-sm mt-0.5" id="p-spent"></p>
+<div class="flex flex-wrap gap-2 mt-3">
+<button onclick="profTab('orders')" id="pt-orders" class="px-3 py-1.5 rounded-full text-sm bg-sky-600 text-white">История заказов</button>
+<button onclick="profTab('notifs')" id="pt-notifs" class="px-3 py-1.5 rounded-full text-sm border">Уведомления <span id="n-badge" class="bg-red-500 text-white text-xs px-1 rounded-full hidden">0</span></button>
+<button onclick="profTab('settings')" id="pt-settings" class="px-3 py-1.5 rounded-full text-sm border">Настройки</button>
+<button onclick="logout()" class="px-3 py-1.5 rounded-full text-sm text-red-500 border border-red-200">Выйти</button>
+</div>
+</div>
+</div>
+<div id="prof-orders">
+<h2 class="font-semibold mb-3">История заказов</h2>
+<div id="u-orders" class="space-y-3"></div>
+<div id="u-orders-empty" class="hidden text-center py-10 text-[var(--muted)]">Пока нет заказов</div>
+</div>
+<div id="prof-notifs" class="hidden"><div id="u-notifs" class="space-y-2"></div><div id="u-notifs-empty" class="hidden text-center py-10 text-[var(--muted)]">Нет уведомлений</div></div>
+<div id="prof-settings" class="hidden">
+<div class="card rounded-2xl p-5 max-w-sm space-y-3">
+<input id="set-name" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Имя">
+<input id="set-pass" type="password" class="w-full border rounded-xl px-3 py-2 text-sm" placeholder="Новый пароль">
+<button onclick="saveProf()" class="btn-primary w-full py-2 rounded-xl text-sm">Сохранить</button>
+</div>
+</div>
+</div>
+
+<!-- ADMIN CLIENT PROFILE -->
+<div id="view-cprofile" class="hidden">
+<button onclick="closeClientProfile()" class="text-sm text-[var(--muted)] mb-4">← К клиентам</button>
+<div class="flex flex-col sm:flex-row gap-5 mb-6">
+<div class="w-20 h-20 rounded-full avatar-circle flex items-center justify-center text-white text-2xl font-bold overflow-hidden relative">
+<span id="cp-letter">?</span><img id="cp-img" class="w-full h-full object-cover hidden absolute inset-0">
+</div>
+<div>
+<div class="flex flex-wrap items-center gap-2 mb-1"><h1 class="font-display text-2xl" id="cp-name">Клиент</h1><span id="cp-rank" class="px-2.5 py-0.5 rounded-full text-xs font-bold text-white"></span></div>
+<p class="text-sm text-[var(--muted)]" id="cp-phone"></p>
+<p class="text-sm" id="cp-tg"></p>
+<p class="text-sm mt-1" id="cp-meta"></p>
+<p class="text-xs text-[var(--muted)] mt-1" id="cp-source"></p>
+</div>
+</div>
+<div class="grid md:grid-cols-2 gap-4 mb-6">
+<div class="card rounded-2xl p-4">
+<h3 class="font-semibold text-sm mb-2">Рефералы</h3>
+<div id="cp-refs" class="text-sm text-[var(--muted)]">—</div>
+</div>
+<div class="card rounded-2xl p-4">
+<h3 class="font-semibold text-sm mb-2">Промокоды</h3>
+<div id="cp-promos" class="text-sm text-[var(--muted)]">—</div>
+</div>
+</div>
+<h2 class="font-semibold mb-3">История заказов</h2>
+<div id="cp-orders" class="space-y-3"></div>
+<div id="cp-orders-empty" class="hidden text-center py-8 text-[var(--muted)]">Нет заказов</div>
+</div>
+
+<!-- ADMIN -->
+<!-- admin removed -->
+id="auth-m" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-black/50 backdrop-blur-sm" style="pointer-events:none">
+<div class="card rounded-2xl shadow-2xl w-full max-w-sm p-5 relative">
+<button onclick="closeAuth()" class="absolute top-3 right-3 text-[var(--muted)]">✕</button>
+<h2 class="font-display text-xl mb-1" id="auth-t">Вход</h2>
+<p class="text-sm text-[var(--muted)] mb-4" id="auth-s">Телефон, Telegram и пароль</p>
+<input id="a-ph" type="tel" class="w-full border rounded-xl px-3 py-2 text-sm mb-2" value="+998 " oninput="fmtPhone(this)" placeholder="Телефон *">
+<input id="a-tg" type="text" class="w-full border rounded-xl px-3 py-2 text-sm mb-2" placeholder="Telegram @username * (из TG)" autocomplete="username">
+<input id="a-pw" type="password" class="w-full border rounded-xl px-3 py-2 text-sm mb-2" onkeydown="if(event.key==='Enter')doAuth()" placeholder="Пароль">
+<input id="a-nm" class="w-full border rounded-xl px-3 py-2 text-sm mb-2 hidden" placeholder="Имя">
+<input id="a-ref" class="w-full border rounded-xl px-3 py-2 text-sm mb-2 hidden" placeholder="Реферальный код друга (необязательно)">
+<button onclick="doAuth()" class="w-full btn-sky py-2.5 rounded-xl font-semibold mb-2">Продолжить</button>
+<button onclick="togAuth()" class="w-full text-sm text-sky-600" id="auth-tog">Нет аккаунта? Регистрация</button>
+</div>
+</div>
+<div id="toast" class="fixed bottom-5 right-5 bg-ink-900 dark:bg-ink-100 text-white dark:text-ink-900 px-4 py-2.5 rounded-xl shadow-lg transform translate-y-16 opacity-0 transition-all z-[110] text-sm max-w-xs"></div>
+
+<script>
+const ADMIN_PHONE="998900316226",ADMIN_PASS="niki04taS";
+let PAY_CARD="8600 3129 8475 2031",PAY_CARD_NAME="Uzcard",DELIVERY_FROM=25000;
+let SUPPORT_PHONE="+998 90 031 62 26";
+let SOCIAL={ig:"https://instagram.com/skycloth",tt:"https://tiktok.com/@skycloth",tg:"https://t.me/skycloth"};
+let SEASON={name:"Сезонное", women:[], men:[]};
+let ADS={slots:[]}; // { slots: [{id, place, enabled, media, type, link}] }
+const AD_PLACES={ "home-top":"Главная · верх", "home-bottom":"Главная · низ", "catalog":"Каталог" };
+function defaultAdSlots(){return[
+  {id:"home-top",place:"home-top",enabled:true,media:"",type:"image",link:""},
+  {id:"home-bottom",place:"home-bottom",enabled:true,media:"",type:"image",link:""},
+  {id:"catalog",place:"catalog",enabled:true,media:"",type:"image",link:""}
+]}
+function normalizeAds(raw){
+if(!raw)return{slots:defaultAdSlots()};
+if(Array.isArray(raw.slots))return{slots:raw.slots};
+// migrate old format { "home-top": {img, link}, ... }
+const slots=defaultAdSlots();
+["home-top","home-bottom","catalog"].forEach((p,i)=>{
+const old=raw[p];
+if(old&&(old.img||old.media)){slots[i].media=old.img||old.media;slots[i].link=old.link||"";slots[i].type=old.type||"image";slots[i].enabled=old.enabled!==false}
+});
+return{slots};
+}
+let RANKS=[
+{id:"bronze",name:"Bronze",min:0,discount:0,cls:"rank-bronze"},
+{id:"silver",name:"Silver",min:1500000,discount:3,cls:"rank-silver"},
+{id:"gold",name:"Gold",min:5000000,discount:7,cls:"rank-gold"},
+{id:"platinum",name:"Platinum",min:12000000,discount:12,cls:"rank-platinum"},
+{id:"diamond",name:"Diamond",min:25000000,discount:18,cls:"rank-diamond"},
+{id:"elite",name:"Elite",min:50000000,discount:25,cls:"rank-elite"}
+];
+let ORDER_DISCOUNTS=[{min:1000000,percent:2},{min:2000000,percent:4},{min:3500000,percent:6},{min:5000000,percent:8},{min:10000000,percent:12}];
+const CAT={all:"Все",women:"Женская одежда",men:"Мужская одежда",shoes:"Обувь",bags:"Сумки",accessories:"Аксессуары"};
+let FIRST_ORDER_PCT=5, REF_NEW_PCT=5, REF_BONUS_PCT=10, REF_L2_PCT=3;
+let BOT_TPL=[{key:"привет",ans:"Здравствуйте! 👋 Я Sky.Cloth Bot. Помогу с выбором вкуса, доставкой, оплатой и заказами. 18+"},{key:"hello",ans:"Hello! How can I help you today?"},{key:"вкус",ans:"На карточке товара нажмите нужный вкус (например Мята, Клубника) и добавьте в корзину."},{key:"доставк",ans:"Доставка курьером — оплата при получении. Самовывоз бесплатно."},{key:"спасибо",ans:"Пожалуйста! Если ещё что-то нужно — пишите 😊"}];
+let PROMOS=[]; // {code, pct, ownerPhone, commission, uses}
+let activePromo=null; // applied promo object for current checkout
+let emailIndex={}; // email -> phone
+const DEF=[{"id": 1, "name": "Платье летнее лёгкое", "price": 289000, "oldPrice": 0, "category": "women", "image": "https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=500&h=600&fit=crop", "description": "Лёгкое хлопковое платье свободного кроя. Идеально для жарких дней.", "sizes": ["S", "M", "L", "XL"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 2, "name": "Блузка шёлковая", "price": 345000, "oldPrice": 0, "category": "women", "image": "https://images.unsplash.com/photo-1564257631407-4deb1f99d992?w=500&h=600&fit=crop", "description": "Элегантная шёлковая блузка. Подходит для офиса и особых случаев.", "sizes": ["XS", "S", "M", "L"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 3, "name": "Джинсы skinny", "price": 412000, "oldPrice": 0, "category": "women", "image": "https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=500&h=600&fit=crop", "description": "Классические джинсы slim fit. Высокое качество денима.", "sizes": ["25", "26", "27", "28", "29", "30"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 4, "name": "Куртка джинсовая oversize", "price": 520000, "oldPrice": 0, "category": "women", "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=500&h=600&fit=crop", "description": "Стильная oversize джинсовая куртка.", "sizes": ["S", "M", "L"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 5, "name": "Рубашка оксфорд", "price": 275000, "oldPrice": 0, "category": "men", "image": "https://images.unsplash.com/photo-1596755094514-f87e34085b85?w=500&h=600&fit=crop", "description": "Классическая рубашка из ткани оксфорд.", "sizes": ["S", "M", "L", "XL", "XXL"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 6, "name": "Футболка базовая", "price": 129000, "oldPrice": 0, "category": "men", "image": "https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=500&h=600&fit=crop", "description": "100% хлопок. Мягкая и дышащая.", "sizes": ["S", "M", "L", "XL"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 7, "name": "Брюки чинос", "price": 389000, "oldPrice": 0, "category": "men", "image": "https://images.unsplash.com/photo-1473966968600-fa801b869a1a?w=500&h=600&fit=crop", "description": "Удобные чиносы из хлопка.", "sizes": ["30", "32", "34", "36", "38"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 8, "name": "Худи oversize", "price": 320000, "oldPrice": 0, "category": "men", "image": "https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=500&h=600&fit=crop", "description": "Тёплый худи oversize с мягким флисом.", "sizes": ["S", "M", "L", "XL"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 9, "name": "Кроссовки белые", "price": 450000, "oldPrice": 0, "category": "shoes", "image": "https://images.unsplash.com/photo-1549298916-b41d501d3772?w=500&h=600&fit=crop", "description": "Классические белые кроссовки.", "sizes": ["38", "39", "40", "41", "42", "43", "44"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 10, "name": "Туфли кожаные", "price": 680000, "oldPrice": 0, "category": "shoes", "image": "https://images.unsplash.com/photo-1614252237980-8e6c9c0f2a5a?w=500&h=600&fit=crop", "description": "Элегантные кожаные туфли.", "sizes": ["40", "41", "42", "43", "44"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 11, "name": "Босоножки на каблуке", "price": 395000, "oldPrice": 0, "category": "shoes", "image": "https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=500&h=600&fit=crop", "description": "Изящные босоножки на устойчивом каблуке.", "sizes": ["36", "37", "38", "39", "40"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 12, "name": "Сумка тоут кожаная", "price": 520000, "oldPrice": 0, "category": "bags", "image": "https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=500&h=600&fit=crop", "description": "Вместительная кожаная сумка тоут.", "sizes": ["One size"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 13, "name": "Клатч вечерний", "price": 280000, "oldPrice": 0, "category": "bags", "image": "https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?w=500&h=600&fit=crop", "description": "Элегантный вечерний клатч.", "sizes": ["One size"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 14, "name": "Рюкзак городской", "price": 410000, "oldPrice": 0, "category": "bags", "image": "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=500&h=600&fit=crop", "description": "Стильный городской рюкзак.", "sizes": ["One size"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 15, "name": "Часы классические", "price": 890000, "oldPrice": 0, "category": "accessories", "image": "https://images.unsplash.com/photo-1523170335258-f5ed11844a49?w=500&h=600&fit=crop", "description": "Элегантные наручные часы.", "sizes": ["One size"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 16, "name": "Солнцезащитные очки", "price": 195000, "oldPrice": 0, "category": "accessories", "image": "https://images.unsplash.com/photo-1511499767150-a48a237f0083?w=500&h=600&fit=crop", "description": "Стильные очки с UV-защитой.", "sizes": ["One size"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 17, "name": "Ремень кожаный", "price": 165000, "oldPrice": 0, "category": "accessories", "image": "https://images.unsplash.com/photo-1624222247344-550fb60583fd?w=500&h=600&fit=crop", "description": "Классический кожаный ремень.", "sizes": ["90", "95", "100", "105", "110"], "likes": 0, "dislikes": 0, "reviews": []}, {"id": 18, "name": "Шарф кашемировый", "price": 245000, "oldPrice": 0, "category": "accessories", "image": "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?w=500&h=600&fit=crop", "description": "Мягкий кашемировый шарф.", "sizes": ["One size"], "likes": 0, "dislikes": 0, "reviews": []}];
+
+let products=[],cart=[],orders=[],users={},helpers=[],notifs={};
+let currentUser=null,isAdmin=false,isHelper=false,curCat="all",prevView="home";
+let map=null,marker=null,authMode="login",ssData=null,curPid=null,revStars=0;
+let likes={},dislikes={};
+
+function L(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}
+function S(k,v){localStorage.setItem(k,JSON.stringify(v))}
+function getTgUser(){
+try{
+if(window.Telegram&&Telegram.WebApp&&Telegram.WebApp.initDataUnsafe&&Telegram.WebApp.initDataUnsafe.user)
+return Telegram.WebApp.initDataUnsafe.user;
+}catch(e){}
+return null;
+}
+function getTgId(){
+const u=getTgUser();
+return u&&u.id?String(u.id):null;
+}
+function scopeKey(base){
+const id=getTgId();
+return id?base+"_tg_"+id:base+"_web";
+}
+function np(p){return(p||"").replace(/\D/g,"")}
+function fp(n){return new Intl.NumberFormat("ru-RU").format(Math.round(n))+" сум"}
+function fmtPhone(el){let d=el.value.replace(/\D/g,"");if(!d.startsWith("998"))d="998"+d.replace(/^998/,"");d=d.slice(0,12);let f="+998";if(d.length>3)f+=" "+d.slice(3,5);if(d.length>5)f+=" "+d.slice(5,8);if(d.length>8)f+=" "+d.slice(8,10);if(d.length>10)f+=" "+d.slice(10,12);el.value=f}
+function toast(m){const t=document.getElementById("toast");t.textContent=m;t.classList.add("toast-show");t.classList.remove("translate-y-16","opacity-0");setTimeout(()=>{t.classList.remove("toast-show");t.classList.add("translate-y-16","opacity-0")},2500)}
+function openScreenshot(src){
+const m=document.createElement("div");m.className="ss-modal";m.onclick=function(e){if(e.target===m)m.remove()};
+m.innerHTML=`<img src="${src}" alt="Скриншот оплаты"><button type="button" style="position:absolute;top:16px;right:16px;color:#fff;font-size:24px;background:rgba(0,0,0,.5);border:none;border-radius:9999px;width:40px;height:40px;cursor:pointer" onclick="this.parentElement.remove()">✕</button>`;
+document.body.appendChild(m);
+}
+function closeMob(){document.getElementById("mob-menu").classList.add("hidden")}
+
+function init(){
+try{
+["welcome-splash","auth-m","rank-modal"].forEach(id=>{
+const el=document.getElementById(id);
+if(el){el.classList.add("hidden");el.classList.remove("flex","out");el.style.pointerEvents="none"}
+});
+}catch(e){}
+products=L("sc_prods",null)||DEF.map(p=>({...p}));
+if(!products.length||products.some(p=>["elektronki","vapes","snus","hookah","cigs"].includes(p.category))){
+  products=DEF.map(p=>({...p}));
+  S("sc_prods",products);
+}
+
+
+orders=L("sc_orders",[]);users=L("sc_users",{});helpers=L("sc_help",[]);
+notifs=L("sc_notifs",{});likes=L("sc_likes",{});dislikes=L("sc_dislikes",{});
+cart=L(scopeKey("sc_cart"),[]);
+const cfg=L("sc_cfg",{});
+if(cfg.card)PAY_CARD=cfg.card;if(cfg.cardName)PAY_CARD_NAME=cfg.cardName;if(cfg.del!=null)DELIVERY_FROM=cfg.del;
+if(cfg.ranks)RANKS=cfg.ranks;if(cfg.od)ORDER_DISCOUNTS=cfg.od;
+if(cfg.support)SUPPORT_PHONE=cfg.support;
+if(cfg.social)SOCIAL=cfg.social;
+if(cfg.season)SEASON=cfg.season;
+if(cfg.first!=null)FIRST_ORDER_PCT=cfg.first;
+if(cfg.refNew!=null)REF_NEW_PCT=cfg.refNew;
+if(cfg.refBonus!=null)REF_BONUS_PCT=cfg.refBonus;
+if(cfg.refL2!=null)REF_L2_PCT=cfg.refL2;
+if(cfg.botTpl)BOT_TPL=cfg.botTpl;
+if(cfg.promos)PROMOS=cfg.promos;
+ADS=normalizeAds(cfg.ads);
+emailIndex={};
+for(const[ph,u]of Object.entries(users)){if(u.email)emailIndex[u.email.toLowerCase()]=ph}
+applySocial();
+const tgId=getTgId();
+const lastTg=localStorage.getItem("sc_last_tg")||"";
+/* Смена аккаунта Telegram → сброс входа и корзины этого устройства */
+if(tgId && lastTg && lastTg!==tgId){
+  localStorage.removeItem("sc_ses");
+  localStorage.removeItem(scopeKey("sc_cart"));
+  currentUser=null;isAdmin=false;isHelper=false;
+  cart=[];
+}
+if(tgId)localStorage.setItem("sc_last_tg",tgId);
+else localStorage.removeItem("sc_last_tg");
+
+const ses=L("sc_ses",null);
+if(ses){
+  /* Сессия только для того же Telegram-аккаунта (или браузер без TG) */
+  const sesOk=!ses.tgId || !tgId || ses.tgId===tgId;
+  if(sesOk){
+    if(ses.admin)isAdmin=true;
+    if(ses.helper){isHelper=true;isAdmin=true}
+    if(ses.phone&&users[ses.phone])currentUser=ses.phone;
+  }else{
+    localStorage.removeItem("sc_ses");
+    currentUser=null;isAdmin=false;isHelper=false;
+  }
+}
+applyTheme(localStorage.getItem("sc_theme")||"light");
+ensureUserIds();
+supportChats=L("sc_chats",{});
+renderFeat();renderNews();renderAds();updBadge();updHeader();updChatUnread();
+document.getElementById("sshot")?.addEventListener("change",e=>{const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){toast("Макс 10 МБ");return}const r=new FileReader();r.onload=ev=>{ssData=ev.target.result;document.getElementById("ss-prev").classList.remove("hidden");document.getElementById("ss-img").src=ev.target.result};r.readAsDataURL(f)});
+// stars
+document.getElementById("star-btns").innerHTML=[1,1.5,2,2.5,3,3.5,4,4.5,5].map(v=>`<button type="button" onclick="setStars(${v})" class="star-btn text-xl star-empty" data-v="${v}">★</button>`).join("")+" <span id='sv' class='text-sm text-[var(--muted)] ml-1'>0</span>";
+
+try{history.replaceState({v:isAdmin?"admin":"home"},"",location.pathname+(location.search||""))}catch(e){}
+}
+function applyTheme(t){document.documentElement.classList.toggle("dark",t==="dark");localStorage.setItem("sc_theme",t)}
+function toggleTheme(){applyTheme(document.documentElement.classList.contains("dark")?"light":"dark")}
+window.addEventListener("popstate",function(e){
+const v=(e.state&&e.state.v)|| (isAdmin?"admin":"home");
+
+showView(v,true);
+});
+(function preventEdgeSwipe(){
+let sx=0,sy=0;
+document.addEventListener("touchstart",function(e){
+if(!e.touches||!e.touches[0])return;
+sx=e.touches[0].clientX;sy=e.touches[0].clientY;
+},{passive:true});
+/* edge-swipe close disabled for Telegram stability */
+document.addEventListener("touchmove",function(e){
+if(!e.touches||!e.touches[0])return;
+},{passive:true});
+})();
+function saveSes(){
+const tgId=getTgId();
+if(currentUser)S("sc_ses",{phone:currentUser,admin:!!isAdmin,helper:!!isHelper,tgId:tgId||null});
+else if(isAdmin)S("sc_ses",{admin:true,tgId:tgId||null});
+else localStorage.removeItem("sc_ses");
+if(tgId)localStorage.setItem("sc_last_tg",tgId);
+}
+function saveCart(){S(scopeKey("sc_cart"),cart)}
+function applySocial(){
+const ig=document.getElementById("link-ig"),tt=document.getElementById("link-tt"),tg=document.getElementById("link-tg"),sup=document.getElementById("footer-support");
+if(ig){ig.href=SOCIAL.ig||"#";ig.style.display=SOCIAL.ig?"inline":"none"}
+if(tt){tt.href=SOCIAL.tt||"#";tt.style.display=SOCIAL.tt?"inline":"none"}
+if(tg){tg.href=SOCIAL.tg||"#";tg.style.display=SOCIAL.tg?"inline":"none"}
+if(sup)sup.textContent=SUPPORT_PHONE;
+
+}
+
+function getRank(spent){let r=RANKS[0];for(const x of RANKS)if(spent>=x.min)r=x;return r}
+function getSpent(ph){return orders.filter(o=>np(o.phone)===np(ph)&&o.status==="confirmed").reduce((s,o)=>s+o.total,0)}
+function rankPct(){return currentUser?getRank(getSpent(currentUser)).discount:0}
+function orderPct(sub){let p=0;for(const d of ORDER_DISCOUNTS)if(sub>=d.min)p=d.percent;return p}
+function isFirstOrder(ph){const p=np(ph||currentUser);return !orders.some(o=>np(o.phone)===p&&o.status==="confirmed")}
+function getExtraDiscounts(sub){
+let first=0,refNew=0,refBonus=0,promo=0;
+if(!currentUser)return{first:0,refNew:0,refBonus:0,promo:0};
+const u=users[currentUser];
+if(isFirstOrder(currentUser)){
+first=Math.round(sub*FIRST_ORDER_PCT/100);
+if(u&&u.referredBy)refNew=Math.round(sub*REF_NEW_PCT/100);
+}
+if(u&&u.pendingRefBonus)refBonus=Math.round(sub*REF_BONUS_PCT/100);
+else if(u&&u.pendingL2Bonus)refBonus=Math.round(sub*REF_L2_PCT/100);
+if(activePromo&&activePromo.pct)promo=Math.round(sub*activePromo.pct/100);
+return{first,refNew,refBonus,promo};
+}
+function applyPromo(){
+const code=(document.getElementById("promo-input")?.value||"").toUpperCase().trim();
+const msg=document.getElementById("promo-msg");
+if(!code){activePromo=null;if(msg)msg.textContent="";updCheckout();return}
+const p=PROMOS.find(x=>x.code===code);
+if(!p){activePromo=null;if(msg){msg.textContent="Промокод не найден";msg.className="text-xs mt-1 text-red-500"}updCheckout();return}
+activePromo=p;
+if(msg){msg.textContent=`✓ Скидка ${p.pct}% применена`;msg.className="text-xs mt-1 text-green-600"}
+updCheckout();toast("Промокод применён: −"+p.pct+"%")}
+function hideWelcome(){
+const el=document.getElementById("welcome-splash");
+if(!el)return;
+el.classList.add("out");
+setTimeout(()=>{
+el.classList.add("hidden");
+el.classList.remove("flex","out");
+el.style.opacity="";el.style.visibility="";
+el.style.pointerEvents="none";
+},700);
+}
+function showWelcome(){
+const el=document.getElementById("welcome-splash");
+if(!el)return;
+el.classList.remove("hidden","out");
+el.classList.add("flex");
+el.style.opacity="1";
+el.style.visibility="visible";
+el.style.pointerEvents="auto";
+el.onclick=function(){hideWelcome()};
+setTimeout(hideWelcome,3000);
+}
+function simNotify(phone,email,text){
+// Simulate SMS / email — real delivery needs backend (Twilio etc.)
+pushN(phone,text);
+if(email)pushN(phone,"📧 Email на "+email+": "+text);
+toast("Уведомление отправлено"+(email?" (SMS + email)":" (SMS)"));
+}
+function genRefId(phone){
+// unique ID: SKY + last4 phone + 4 random chars
+const base="SKY"+String(phone).slice(-4);
+const chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+let extra="";for(let i=0;i<4;i++)extra+=chars[Math.floor(Math.random()*chars.length)];
+let id=base+extra;
+const used=new Set(Object.values(users).map(u=>u.refId).filter(Boolean));
+while(used.has(id)){extra="";for(let i=0;i<4;i++)extra+=chars[Math.floor(Math.random()*chars.length)];id=base+extra}
+return id}
+function ensureUserIds(){
+let changed=false;
+const used=new Set();
+for(const[ph,u]of Object.entries(users)){
+if(u.refId&&!used.has(u.refId)){used.add(u.refId);continue}
+u.refId=genRefId(ph);used.add(u.refId);changed=true}
+if(changed)S("sc_users",users)}
+function findUserByRef(ref){ref=(ref||"").toUpperCase().trim();if(!ref)return null;for(const[ph,u]of Object.entries(users)){if((u.refId||"").toUpperCase()===ref)return ph}return null}
+let apFilter="all";
+function setApFilter(f){
+apFilter=f;
+document.querySelectorAll(".ap-f").forEach(b=>{
+const on=b.dataset.ap===f;
+b.className="ap-f px-2.5 py-1 rounded-full "+(on?"bg-sky-600 text-white":"border");
+});
+renderAP()}
+function showRankInfo(){
+if(!currentUser)return;
+const spent=getSpent(currentUser),cur=getRank(spent);
+document.getElementById("rank-modal-current").innerHTML=`Сейчас у вас <strong>${cur.name}</strong> · потрачено ${fp(spent)} · скидка ${cur.discount}%`;
+document.getElementById("rank-modal-list").innerHTML=RANKS.map(r=>{
+const done=spent>=r.min;
+const next=RANKS.find(x=>x.min>spent);
+const need=r.min>spent?`Ещё ${fp(r.min-spent)} до этого ранга`:"";
+const isCur=r.id===cur.id;
+return`<div class="p-3 rounded-xl border ${isCur?"border-sky-600 bg-sky-50 dark:bg-sky-950":"border-[var(--border)]"}">
+<div class="flex justify-between items-center gap-2">
+<span class="px-2 py-0.5 rounded-full text-xs font-bold text-white ${r.cls}">${r.name}</span>
+<span class="text-sm font-semibold">${r.discount}% скидка</span>
+</div>
+<p class="text-xs text-[var(--muted)] mt-1">От ${fp(r.min)} покупок ${done?"· ✓ открыт":""}</p>
+${need&&!done?`<p class="text-xs text-sky-600 mt-1">${need}</p>`:""}
+${isCur&&next?`<p class="text-xs mt-1">До <strong>${next.name}</strong>: ещё ${fp(next.min-spent)}</p>`:""}
+</div>`}).join("");
+const m=document.getElementById("rank-modal");m.classList.remove("hidden");m.classList.add("flex");m.style.pointerEvents="auto"}
+function closeRankInfo(){const m=document.getElementById("rank-modal");if(!m)return;m.classList.add("hidden");m.classList.remove("flex");m.style.pointerEvents="none"}
+function renderNews(){
+const el=document.getElementById("news-list");if(!el)return;
+const items=[];
+if(FIRST_ORDER_PCT>0)items.push(`🎉 <strong>Первый заказ</strong> — скидка ${FIRST_ORDER_PCT}% для новых клиентов`);
+if(REF_NEW_PCT>0)items.push(`👥 Пригласите друга по своему ID: другу ${REF_NEW_PCT}% на первый заказ, вам ${REF_BONUS_PCT}% на следующий`);
+const saleN=products.filter(p=>p.oldPrice&&p.oldPrice>p.price).length;
+if(saleN>0)items.push(`🔥 <strong>SALE</strong> — ${saleN} товар(ов) со скидкой прямо сейчас`);
+const topRank=RANKS.filter(r=>r.discount>0).slice(-1)[0];
+if(topRank)items.push(`⭐ Ранг ${topRank.name}: до ${topRank.discount}% скидки за покупки от ${fp(topRank.min)}`);
+if(ORDER_DISCOUNTS.length)items.push(`💳 От ${fp(ORDER_DISCOUNTS[0].min)} в одном заказе — доп. скидка от ${ORDER_DISCOUNTS[0].percent}%`);
+el.innerHTML=items.map(t=>`<p>${t}</p>`).join("")||"<p class='text-[var(--muted)]'>Следите за акциями здесь</p>";
+}
+function avgR(p){if(!p.reviews?.length)return 0;return p.reviews.reduce((s,r)=>s+r.stars,0)/p.reviews.length}
+function starsH(r){let h="";const f=Math.floor(r),hf=r%1>=.5;for(let i=0;i<5;i++)h+=i<f||(i===f&&hf)?'<span class="star">★</span>':'<span class="star-empty">★</span>';return h}
+function isSale(p){return p.oldPrice&&p.oldPrice>p.price}
+
+function card(p){
+const a=avgR(p),s=isSale(p);
+const rc=p.reviews?.length||0;
+return `<div class="product-card card rounded-2xl overflow-hidden cursor-pointer relative" onclick="openProd(${p.id})">
+${s?'<span class="sale-badge">SALE</span>':''}
+<div class="aspect-[3/4] overflow-hidden bg-slate-100 dark:bg-ink-800"><img src="${p.image}" class="w-full h-full object-cover" loading="lazy" onerror="this.src='https://placehold.co/400x500/0f172a/0ea5e9?text=Sky.Cloth'"></div>
+<div class="p-3">
+<h3 class="font-medium text-sm line-clamp-2 mb-1">${p.name}</h3>
+${a?`<div class="text-xs mb-1 flex items-center gap-1">${starsH(a)} <span class="text-[var(--muted)]">(${rc})</span></div>`:`<div class="text-xs text-[var(--muted)] mb-1">Нет оценок</div>`}
+<div class="flex items-baseline gap-2">
+<span class="font-semibold text-sky-600">${fp(p.price)}</span>
+${s?`<span class="text-xs line-through text-[var(--muted)]">${fp(p.oldPrice)}</span>`:""}
+</div>
+</div></div>`;
+}
+function openProd(id){
+prevView=document.getElementById("view-catalog").classList.contains("hidden")?"home":"catalog";curPid=id;
+const p=products.find(x=>x.id===id);if(!p)return;
+const a=avgR(p),s=isSale(p),bought=hasBought(id);
+const optLabel=(p.category==="cigs"||p.category==="cigs_import")?"Вариант":(/уголь/i.test(p.name||"")||(p.sizes||[]).some(s=>/мм/.test(s)))?"Размер":(p.category==="vapes"&&(p.sizes||[]).some(s=>/Чёрный|Синий|Серебр/.test(s)))?"Цвет":"Вкус";
+const sz=p.sizes?.length?`<div class="mb-4"><p class="text-sm font-medium mb-1">${optLabel}</p><div class="flex flex-wrap gap-1.5">${p.sizes.map((x,i)=>`<button type="button" onclick="selSize(this)" class="size-btn flavor-btn px-3 py-1.5 border rounded-lg text-sm ${i===0?"active":""}" data-size="${x}">${x}</button>`).join("")}</div></div>`:"";
+const chart="";
+document.getElementById("prod-detail").innerHTML=`
+<div class="relative aspect-square rounded-2xl overflow-hidden bg-gradient-to-br from-stone-100 to-sky-50 dark:from-ink-800 dark:to-ink-900">${s?'<span class="sale-badge">SALE</span>':""}<img src="${p.image}" class="w-full h-full object-cover" onerror="this.src='https://placehold.co/400x500'"></div>
+<div><p class="text-sm text-sky-600 mb-1">${CAT[p.category]||p.category}</p>
+<h1 class="font-display text-2xl mb-2">${p.name}</h1>
+${a?`<div class="mb-2">${starsH(a)} <span class="text-sm text-[var(--muted)]">${a.toFixed(1)} (${p.reviews.length})</span></div>`:'<div class="mb-2 text-sm text-[var(--muted)]">Пока нет оценок</div>'}
+<div class="flex items-baseline gap-2 mb-3"><span class="text-xl font-semibold text-sky-600">${fp(p.price)}</span>${s?`<span class="line-through text-[var(--muted)]">${fp(p.oldPrice)}</span>`:""}</div>
+<p class="text-[var(--muted)] text-sm mb-3">${p.description||""}</p>
+
+${sz}${chart}
+<button onclick="addCart(${p.id})" class="btn-primary px-6 py-3 rounded-xl font-semibold mt-4">В корзину</button></div>`;
+renderRevs(p);
+if(currentUser&&bought){document.getElementById("review-form").classList.remove("hidden");document.getElementById("rev-hint").classList.add("hidden")}
+else{document.getElementById("review-form").classList.add("hidden");document.getElementById("rev-hint").classList.remove("hidden");
+document.getElementById("rev-hint").textContent=currentUser?"Оценку и лайк можно оставить только после покупки этого товара (заказ должен быть подтверждён)":"Войдите и купите товар, чтобы оставить отзыв и лайк"}
+showView("product")}
+function selSize(b){document.querySelectorAll(".size-btn").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
+function renderRevs(p){const el=document.getElementById("reviews");if(!p.reviews?.length){el.innerHTML='<p class="text-sm text-[var(--muted)]">Нет отзывов</p>';return}
+el.innerHTML=p.reviews.slice().reverse().map(r=>`<div class="border-b pb-2"><div class="flex gap-2 items-center text-sm"><strong>${r.name||"Клиент"}</strong>${starsH(r.stars)}</div><p class="text-sm text-[var(--muted)]">${r.text||""}</p></div>`).join("")}
+function setStars(v){revStars=v;document.querySelectorAll(".star-btn").forEach(b=>{const val=+b.dataset.v;b.classList.toggle("star",val<=v);b.classList.toggle("star-empty",val>v)});document.getElementById("sv").textContent=v}
+
+if(!hasBought(curPid)){toast("Лайк только после покупки");return}
+function doDislike(){/* removed */}
+
+function sendReview(){
+if(!currentUser||!curPid){toast("Войдите");return}
+if(!hasBought(curPid)){toast("Отзыв только после покупки этого товара");return}
+if(revStars<1){toast("Поставьте оценку");return}
+const p=products.find(x=>x.id===curPid);p.reviews=p.reviews||[];
+if(p.reviews.some(r=>r.phone===currentUser)){toast("Вы уже оставляли отзыв на этот товар");return}
+p.reviews.push({stars:revStars,text:document.getElementById("rev-text").value.trim(),name:users[currentUser]?.name||"Клиент",phone:currentUser,date:new Date().toISOString()});
+S("sc_prods",products);renderRevs(p);openProd(curPid);document.getElementById("rev-text").value="";revStars=0;setStars(0);toast("Отзыв добавлен")}
+
+function addCart(id){const p=products.find(x=>x.id===id);if(!p)return;let sz=document.querySelector(".size-btn.active")?.dataset.size||p.sizes?.[0]||null;const ex=cart.find(i=>i.id===id&&i.size===sz);if(ex)ex.qty++;else cart.push({id,size:sz,qty:1});saveCart();updBadge();toast("В корзине")}
+function updBadge(){const n=cart.reduce((s,i)=>s+i.qty,0);const b=document.getElementById("cart-count");if(n>0){b.textContent=n;b.classList.remove("hidden")}else b.classList.add("hidden")}
+function sub(){return cart.reduce((s,i)=>{const p=products.find(x=>x.id===i.id);return s+(p?p.price*i.qty:0)},0)}
+function renderCart(){
+const empty=document.getElementById("cart-empty"),items=document.getElementById("cart-items"),sum=document.getElementById("cart-sum");
+if(!cart.length){empty.classList.remove("hidden");items.innerHTML="";sum.classList.add("hidden");return}
+empty.classList.add("hidden");sum.classList.remove("hidden");
+const s=sub(),rp=rankPct(),rd=Math.round(s*rp/100),op=orderPct(s),od=Math.round(s*op/100),ex=getExtraDiscounts(s);
+const totalDisc=rd+od+ex.first+ex.refNew+ex.refBonus+(ex.promo||0);
+items.innerHTML=cart.map((it,i)=>{const p=products.find(x=>x.id===it.id);if(!p)return"";return`<div class="card rounded-xl p-3 flex gap-3">
+<img src="${p.image}" class="w-16 h-20 object-cover rounded-lg" loading="lazy"><div class="flex-1 min-w-0">
+<h3 class="text-sm font-medium line-clamp-1">${p.name}</h3>${it.size?`<p class="text-xs text-[var(--muted)]">Вкус / вариант: ${it.size}</p>`:""}
+<p class="text-sky-600 text-sm font-semibold">${fp(p.price)}</p>
+<div class="flex items-center gap-2 mt-1"><button onclick="chgQty(${i},-1)" class="px-2 border rounded">−</button><span class="text-sm">${it.qty}</span><button onclick="chgQty(${i},1)" class="px-2 border rounded">+</button>
+<button onclick="remCart(${i})" class="text-red-500 text-xs ml-auto">Удалить</button></div></div></div>`}).join("");
+document.getElementById("c-sub").textContent=fp(s);
+const row=(id,show,val)=>{const r=document.getElementById(id+"-row"),el=document.getElementById(id);if(!r||!el)return;if(show){r.classList.remove("hidden");el.textContent="-"+fp(val)}else r.classList.add("hidden")};
+row("c-rank",rd>0,rd);row("c-order",od>0,od);row("c-first",ex.first>0,ex.first);row("c-ref",ex.refNew>0,ex.refNew);row("c-bonus",ex.refBonus>0,ex.refBonus);row("c-promo",(ex.promo||0)>0,ex.promo||0);
+document.getElementById("c-total").textContent=fp(Math.max(0,s-totalDisc))}
+function chgQty(i,d){cart[i].qty+=d;if(cart[i].qty<1)cart.splice(i,1);saveCart();updBadge();renderCart()}
+function remCart(i){cart.splice(i,1);saveCart();updBadge();renderCart()}
+
+function updCheckout(){
+const s=sub(),rp=rankPct(),rd=Math.round(s*rp/100),op=orderPct(s),od=Math.round(s*op/100),ex=getExtraDiscounts(s);
+const totalDisc=rd+od+ex.first+ex.refNew+ex.refBonus+(ex.promo||0);
+const delType=document.querySelector('input[name="del"]:checked')?.value||"courier";
+// Доставка НЕ входит в предоплату — клиент платит курьеру при получении
+document.getElementById("chk-sub").textContent=fp(s);
+document.getElementById("chk-del").textContent=delType==="courier"?("от "+fp(DELIVERY_FROM)+" (при получении)"):"Бесплатно";
+if(rd>0){document.getElementById("chk-rank-row").classList.remove("hidden");document.getElementById("chk-rank").textContent="-"+fp(rd)}else document.getElementById("chk-rank-row").classList.add("hidden");
+if(od>0){document.getElementById("chk-order-row").classList.remove("hidden");document.getElementById("chk-order").textContent="-"+fp(od)}else document.getElementById("chk-order-row").classList.add("hidden");
+const pr=document.getElementById("chk-promo-row");
+if(pr){if(ex.promo>0){pr.classList.remove("hidden");document.getElementById("chk-promo").textContent="-"+fp(ex.promo)}else pr.classList.add("hidden")}
+document.getElementById("chk-total").textContent=fp(Math.max(0,s-totalDisc))}
+function renderCheckout(){
+document.getElementById("chk-items").innerHTML=cart.map(i=>{const p=products.find(x=>x.id===i.id);return p?`<div class="flex justify-between"><span class="truncate">${p.name} ×${i.qty}</span><span>${fp(p.price*i.qty)}</span></div>`:""}).join("");
+const cardEl=document.getElementById("pay-card");
+if(cardEl)cardEl.textContent=PAY_CARD;
+const nameEl=document.getElementById("pay-card-name");
+if(nameEl)nameEl.textContent=PAY_CARD_NAME||"Карта";
+updCheckout()}
+function copyCard(){navigator.clipboard.writeText(PAY_CARD.replace(/\s/g,""));toast("Скопировано")}
+function startCheckout(){if(!currentUser&&!isAdmin){toast("Сначала войдите");openAuthOrProfile();return}showView("checkout");fillTgFields();if(currentUser&&users[currentUser]){const u=users[currentUser];document.getElementById("cname").value=u.name||"";document.getElementById("cphone").value=fmtPh(currentUser);const tg=document.getElementById("ctg");if(tg)tg.value=u.telegram?("@"+u.telegram):""}}
+function fmtPh(p){const d=String(p).replace(/\D/g,"");return`+${d.slice(0,3)} ${d.slice(3,5)} ${d.slice(5,8)} ${d.slice(8,10)} ${d.slice(10)}`}
+
+function setMapPoint(lat,lng){
+if(!map)return;
+map.setView([lat,lng],15);
+document.getElementById("dlat").value=lat;
+document.getElementById("dlng").value=lng;
+if(marker)map.removeLayer(marker);
+marker=L.marker([lat,lng]).addTo(map);
+}
+function useMyLocation(){
+if(!navigator.geolocation){toast("Геолокация недоступна");return}
+navigator.geolocation.getCurrentPosition(pos=>setMapPoint(pos.coords.latitude,pos.coords.longitude),()=>toast("Нет доступа к геолокации"),{enableHighAccuracy:true,timeout:10000});
+}
+function geocodeAddress(){
+const addr=(document.getElementById("addr")?.value||"").trim();
+if(!addr||addr.length<5){toast("Введите адрес");return}
+const q=encodeURIComponent(addr+", Ташкент, Узбекистан");
+fetch("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="+q,{headers:{"Accept-Language":"ru"}})
+.then(r=>r.json()).then(data=>{
+if(data&&data[0]){setMapPoint(+data[0].lat,+data[0].lon);toast("Адрес найден");}
+else toast("Укажите точку на карте");
+}).catch(()=>toast("Нажмите на карту"));
+}
+function initMap(){
+if(map){try{map.remove()}catch(e){}map=null;marker=null}
+const el=document.getElementById("map");if(!el)return;
+map=L.map("map").setView([41.2995,69.2401],12);
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{attribution:"© OpenStreetMap",maxZoom:19}).addTo(map);
+map.on("click",e=>setMapPoint(e.latlng.lat,e.latlng.lng));
+const lat=document.getElementById("dlat").value,lng=document.getElementById("dlng").value;
+if(lat&&lng)setMapPoint(parseFloat(lat),parseFloat(lng));
+setTimeout(()=>{try{map.invalidateSize()}catch(e){}},200);
+}
+function submitOrder(){
+const name=document.getElementById("cname").value.trim(),phone=document.getElementById("cphone").value.trim(),addr=document.getElementById("addr").value.trim();
+const lat=document.getElementById("dlat").value,lng=document.getElementById("dlng").value,comment=document.getElementById("ccomment").value.trim();
+const tg=normTg(document.getElementById("ctg")?.value||"");
+const delType=document.querySelector('input[name="del"]:checked').value;
+if(!name||!phone||!addr){toast("Заполните имя, телефон и адрес");return}
+if(np(phone).length<12){toast("Укажите телефон");return}
+if(!tg||tg.length<3){toast("Укажите Telegram @username");return}
+if(delType==="courier"&&(!lat||!lng)){toast("Поставьте точку на карте");return}if(!cart.length){toast("Корзина пуста");return}if(!ssData){toast("Прикрепите скриншот оплаты");return}
+const s=sub(),rp=rankPct(),rd=Math.round(s*rp/100),op=orderPct(s),od=Math.round(s*op/100),ex=getExtraDiscounts(s);
+const totalDisc=rd+od+ex.first+ex.refNew+ex.refBonus+(ex.promo||0);
+const promoCode=activePromo?activePromo.code:null;
+// deliveryCost info only — not prepaid; client pays courier on arrival
+if(currentUser&&users[currentUser]){users[currentUser].telegram=tg;S("sc_users",users)}
+const order={id:Date.now(),date:new Date().toISOString(),name,phone,telegram:tg,address:addr,comment,lat:lat||null,lng:lng||null,deliveryType:delType,items:cart.map(i=>{const p=products.find(x=>x.id===i.id);return{id:i.id,name:p?.name,price:p?.price,size:i.size,qty:i.qty}}),subtotal:s,rankDiscount:rd,orderDiscount:od,firstDiscount:ex.first,refDiscount:ex.refNew,refBonus:ex.refBonus,promoDiscount:ex.promo||0,promoCode,deliveryCost:0,deliveryPayOnArrival:delType==="courier",deliveryFrom:DELIVERY_FROM,total:Math.max(0,s-totalDisc),screenshot:ssData,status:"pending",read:false,deliveryDays:null};
+orders.unshift(order);S("sc_orders",orders);updOB();
+if(currentUser&&users[currentUser]){
+if(ex.refBonus>0){users[currentUser].pendingRefBonus=false;users[currentUser].pendingL2Bonus=false}
+if(promoCode){users[currentUser].lastPromo=promoCode;users[currentUser].promosUsed=users[currentUser].promosUsed||[];if(!users[currentUser].promosUsed.includes(promoCode))users[currentUser].promosUsed.push(promoCode)}
+S("sc_users",users);
+if(activePromo){activePromo.uses=(activePromo.uses||0)+1;const c=L("sc_cfg",{});c.promos=PROMOS;S("sc_cfg",c)}
+}
+activePromo=null;const pi=document.getElementById("promo-input");if(pi)pi.value="";const pm=document.getElementById("promo-msg");if(pm)pm.textContent="";
+document.getElementById("ok-msg").textContent=`Заказ №${String(order.id).slice(-6)} отправлен`;
+cart=[];saveCart();updBadge();ssData=null;document.getElementById("ss-prev").classList.add("hidden");document.getElementById("sshot").value="";
+document.getElementById("dlat").value="";document.getElementById("dlng").value="";showView("success")}
+
+function showView(v,fromPop){
+try{
+["home","catalog","product","cart","checkout","success","profile","cprofile"].forEach(x=>{
+const el=document.getElementById("view-"+x);if(el){el.classList.add("hidden")}
+});
+const target=document.getElementById("view-"+v);
+if(target){target.classList.remove("hidden")}
+window.scrollTo({top:0,behavior:"smooth"});
+if(!fromPop){try{history.pushState({v},"",location.pathname+(location.search||""))}catch(e){}}
+if(v==="cart")renderCart();
+if(v==="checkout"){renderCheckout();setTimeout(initMap,100)}
+if(v==="profile"){if(!currentUser){openAuthOrProfile();return}renderProf()}
+if(v==="home"){renderFeat();renderNews();renderAds()}
+if(v==="catalog"){renderCatalog()}
+}catch(e){console.error("showView",e)}
+}
+function filterCategory(c){
+curCat=c;
+showView("catalog");
+const pick=document.getElementById("cat-picker");
+const main=document.getElementById("cat-main");
+if(pick)pick.classList.add("hidden");
+if(main)main.classList.remove("hidden");
+renderCatalog();
+}
+function goBack(){showView(prevView==="product"?"catalog":prevView)}
+
+// Auth
+function openAuthOrProfile(){
+try{
+if(currentUser){showView("profile");profTab("orders");return}
+authMode="login";
+const at=document.getElementById("auth-t");if(at)at.textContent="Вход";
+const as=document.getElementById("auth-s");if(as)as.textContent="Телефон, Telegram и пароль";
+fillTgFields();
+try{const tg=window.Telegram&&Telegram.WebApp;if(tg&&typeof tg.requestContact==="function"&&!localStorage.getItem("sc_tg_phone"))tg.requestContact()}catch(e){}
+
+document.getElementById("a-nm")?.classList.add("hidden");
+document.getElementById("a-ref")?.classList.add("hidden");
+const tog=document.getElementById("auth-tog");if(tog)tog.textContent="Нет аккаунта? Регистрация";
+const m=document.getElementById("auth-m");
+if(m){m.classList.remove("hidden");m.classList.add("flex");m.style.pointerEvents="auto"}
+}catch(e){console.error(e);toast("Ошибка входа")}
+}
+function closeAuth(){const m=document.getElementById("auth-m");if(!m)return;m.classList.add("hidden");m.classList.remove("flex");m.style.pointerEvents="none"}
+function togAuth(){authMode=authMode==="login"?"register":"login";document.getElementById("auth-t").textContent=authMode==="login"?"Вход":"Регистрация";document.getElementById("a-nm").classList.toggle("hidden",authMode==="login");document.getElementById("a-ref").classList.toggle("hidden",authMode==="login");document.getElementById("auth-tog").textContent=authMode==="login"?"Нет аккаунта? Регистрация":"Уже есть? Войти"}
+function normTg(v){
+v=(v||"").trim().replace(/^@/,"");
+return v.replace(/[^a-zA-Z0-9_]/g,"").slice(0,32);
+}
+function doAuth(){
+let phone=np(document.getElementById("a-ph").value);
+const pass=document.getElementById("a-pw").value;
+const tgEl=document.getElementById("a-tg");
+let tg=normTg(tgEl?tgEl.value:"");
+if(!pass){toast("Введите пароль");return}
+if(phone.length<12){toast("Укажите телефон");return}
+if(phone===ADMIN_PHONE&&pass===ADMIN_PASS){
+  isAdmin=true;isHelper=false;
+  if(!users[phone])users[phone]={password:pass,name:"Админ",telegram:"admin",avatar:null,refId:"ADMIN"};
+  currentUser=phone;S("sc_users",users);saveSes();
+  closeAuth();updHeader();showView("profile");profTab("orders");
+  toast("Вход · профиль");return;
+}
+/* helpers disabled */
+if(authMode==="register"){
+if(users[phone]){toast("Номер уже зарегистрирован");return}
+if(!tg||tg.length<3){toast("Укажите Telegram @username");return}
+const taken=Object.values(users).some(u=>(u.telegram||"").toLowerCase()===tg.toLowerCase());
+if(taken){toast("Этот Telegram уже занят");return}
+const refCode=document.getElementById("a-ref").value.trim();
+const refPh=findUserByRef(refCode);
+users[phone]={password:pass,name:document.getElementById("a-nm").value.trim()||"Клиент",telegram:tg,email:null,avatar:null,refId:genRefId(phone),referredBy:refPh,refCount:0,pendingRefBonus:false,pendingL2Bonus:false,promosUsed:[],joinSource:refPh?"ref:"+refPh:"direct"};
+S("sc_users",users);currentUser=phone;isAdmin=false;saveSes();closeAuth();updHeader();
+const welcomeMsg="Добро пожаловать в Sky.Cloth! Ваш ID: "+users[phone].refId+". TG: @"+tg;
+simNotify(phone,null,welcomeMsg);
+showWelcome();
+toast(refPh?"Аккаунт создан · реферал учтён":"Аккаунт создан");showView("profile")}
+else{
+if(!users[phone]||users[phone].password!==pass){toast("Неверный пароль");return}
+currentUser=phone;isAdmin=false;saveSes();closeAuth();updHeader();
+if(tg&&!users[phone].telegram){users[phone].telegram=tg;S("sc_users",users)}
+showWelcome();toast("С возвращением, "+(users[phone].name||""));showView("profile")}}
+function logout(){
+currentUser=null;isAdmin=false;isHelper=false;
+localStorage.removeItem("sc_ses");
+cart=[];saveCart();
+document.body.classList.remove("is-admin");
+document.getElementById("admin-badge").classList.add("hidden");
+updHeader();showView("home");toast("Вышли");
+}
+function updHeader(){const l=document.getElementById("h-letter"),img=document.getElementById("h-img"),lab=document.getElementById("h-label");
+if(isAdmin){l.textContent=isHelper?"H":"A";l.classList.remove("hidden");img.classList.add("hidden");lab.textContent=isHelper?"Помощник":"Админ"}
+else if(currentUser&&users[currentUser]){const u=users[currentUser];lab.textContent=u.name||"Профиль";if(u.avatar){img.src=u.avatar;img.classList.remove("hidden");l.classList.add("hidden")}else{l.textContent=(u.name||"?")[0].toUpperCase();l.classList.remove("hidden");img.classList.add("hidden")}}
+else{l.textContent="?";l.classList.remove("hidden");img.classList.add("hidden");lab.textContent="Войти"}}
+
+function renderProf(){
+if(!currentUser||!users[currentUser])return;
+const u=users[currentUser],spent=getSpent(currentUser),rank=getRank(spent);
+document.getElementById("p-name").textContent=u.name;document.getElementById("p-phone").textContent=fmtPh(currentUser);
+const rid=u.refId||genRefId(currentUser);if(!u.refId){u.refId=rid;S("sc_users",users)}
+document.getElementById("p-spent").textContent=`Потрачено: ${fp(spent)} · Скидка ранга: ${rank.discount}% · Ваш ID: ${rid} · Друзей: ${u.refCount||0}`;
+const b=document.getElementById("p-rank");b.textContent=rank.name+" ⓘ";b.className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white cursor-pointer "+rank.cls;b.onclick=showRankInfo;b.title="Нажмите, чтобы узнать про ранги";
+const l=document.getElementById("p-letter"),img=document.getElementById("p-img");
+if(u.avatar){img.src=u.avatar;img.classList.remove("hidden");l.classList.add("hidden")}else{l.textContent=(u.name||"?")[0].toUpperCase();l.classList.remove("hidden");img.classList.add("hidden")}
+const un=(notifs[currentUser]||[]).filter(n=>!n.read).length;const nb=document.getElementById("n-badge");if(un>0){nb.textContent=un;nb.classList.remove("hidden")}else nb.classList.add("hidden");
+renderUOrders()}
+function profTab(t){document.getElementById("prof-orders").classList.toggle("hidden",t!=="orders");document.getElementById("prof-notifs").classList.toggle("hidden",t!=="notifs");document.getElementById("prof-settings").classList.toggle("hidden",t!=="settings");
+["orders","notifs","settings"].forEach(x=>{document.getElementById("pt-"+x).className=t===x?"px-3 py-1.5 rounded-full text-sm bg-sky-600 text-white":"px-3 py-1.5 rounded-full text-sm border"});
+if(t==="orders")renderUOrders();if(t==="notifs")renderUNotifs();if(t==="settings"){document.getElementById("set-name").value=users[currentUser]?.name||"";document.getElementById("set-pass").value=""}}
+function chgAvatar(e){const f=e.target.files[0];if(!f||!currentUser)return;if(f.size>10*1024*1024){toast("Макс 10 МБ");return}const r=new FileReader();r.onload=ev=>{users[currentUser].avatar=ev.target.result;S("sc_users",users);renderProf();updHeader();toast("Аватар")};r.readAsDataURL(f)}
+function saveProf(){if(!currentUser)return;const n=document.getElementById("set-name").value.trim(),p=document.getElementById("set-pass").value;if(n)users[currentUser].name=n;if(p)users[currentUser].password=p;S("sc_users",users);renderProf();updHeader();toast("Сохранено")}
+function estDel(o){if(o.deliveryDays!=null&&o.deliveryDays>=0){const d=new Date(o.date);d.setDate(d.getDate()+o.deliveryDays);return`Доставка через ${o.deliveryDays} дн. (${d.toLocaleDateString("ru-RU",{day:"numeric",month:"long"})})`}if(o.deliveryType==="pickup")return"Самовывоз";return"Срок уточняется админом"}
+function renderUOrders(){if(!currentUser)return;const list=orders.filter(o=>np(o.phone)===currentUser);const el=document.getElementById("u-orders"),empty=document.getElementById("u-orders-empty");
+if(!list.length){el.innerHTML="";empty.classList.remove("hidden");return}empty.classList.add("hidden");
+el.innerHTML=list.map(orderCardHtml).join("")}
+function orderCardHtml(o){
+const st={pending:"Ожидает",confirmed:"Одобрен",rejected:"Отклонён"}[o.status]||o.status;
+const items=(o.items||[]).map(i=>`${i.name} ×${i.qty} (${fp((i.price||0)*i.qty)})`).join("<br>");
+const dt=new Date(o.date).toLocaleString("ru-RU",{day:"numeric",month:"short",year:"numeric",hour:"2-digit",minute:"2-digit"});
+let rate="";if(o.status==="confirmed"&&!o.deliveryRated){rate=`<div class="mt-2 pt-2 border-t text-xs">Оцените доставку: ${[1,2,3,4,5].map(s=>`<button onclick="rateDel(${o.id},${s})" class="text-lg star-empty">★</button>`).join("")}</div>`}
+else if(o.deliveryRating)rate=`<p class="text-xs mt-1">Доставка: ${"★".repeat(o.deliveryRating)}</p>`;
+return`<div class="card rounded-xl p-4 ${o.status==="pending"?"order-pending":o.status==="confirmed"?"order-confirmed":o.status==="rejected"?"order-rejected":""}">
+<div class="flex justify-between mb-1"><span class="font-semibold text-sm">№${String(o.id).slice(-6)}</span><span class="text-sky-600 font-semibold text-sm">${fp(o.total)}</span></div>
+<p class="text-xs text-[var(--muted)]">${dt}</p>
+<p class="text-sm ${o.status==="pending"?"text-sky-600":o.status==="confirmed"?"text-green-600":"text-red-500"}">${st}</p>
+<p class="text-xs mt-1">${items}</p>
+${o.promoCode?`<p class="text-xs mt-1">Промокод: ${o.promoCode}</p>`:""}
+<p class="text-sm text-sky-600 mt-1 font-medium">${estDel(o)}</p>
+${o.deliveryPayOnArrival?`<p class="text-xs text-[var(--muted)]">Доставка — при получении (от ${fp(o.deliveryFrom||DELIVERY_FROM)})</p>`:""}
+${rate}</div>`}
+function rateDel(id,s){const o=orders.find(x=>x.id===id);if(!o)return;o.deliveryRated=true;o.deliveryRating=s;S("sc_orders",orders);renderUOrders();toast("Спасибо!")}
+function renderUNotifs(){if(!currentUser)return;const list=notifs[currentUser]||[];const el=document.getElementById("u-notifs"),empty=document.getElementById("u-notifs-empty");
+if(!list.length){el.innerHTML="";empty.classList.remove("hidden");return}empty.classList.add("hidden");
+el.innerHTML=list.map(n=>`<div class="card rounded-xl p-3"><p class="text-sm">${n.text}</p><p class="text-xs text-[var(--muted)]">${new Date(n.date).toLocaleString("ru-RU")}</p></div>`).join("");
+list.forEach(n=>n.read=true);S("sc_notifs",notifs);renderProf()}
+function pushN(phone,text){const ph=np(phone);if(!notifs[ph])notifs[ph]=[];notifs[ph].unshift({text,date:new Date().toISOString(),read:false});S("sc_notifs",notifs)}
+
+// Admin
+function switchAdminTab(t){["orders","products","clients","stats","discounts","bot","chats","settings"].forEach(x=>{document.getElementById("admin-"+x)?.classList.toggle("hidden",x!==t);const b=document.getElementById("at-"+x);if(b)b.className=(x===t?"tab-active ":"")+"px-4 py-2.5 whitespace-nowrap"});
+if(t==="orders")renderOrders();if(t==="products")renderAP();if(t==="clients")renderClients();if(t==="stats")renderStats();if(t==="discounts"){renderRanksEd();renderODEd();document.getElementById("cfg-first").value=FIRST_ORDER_PCT;document.getElementById("cfg-ref-new").value=REF_NEW_PCT;document.getElementById("cfg-ref-bonus").value=REF_BONUS_PCT;const l2=document.getElementById("cfg-ref-l2");if(l2)l2.value=REF_L2_PCT;renderPromoList()}
+if(t==="chats")renderAdminChats();
+if(t==="bot")renderBotTpl();
+if(t==="settings"){
+document.getElementById("cfg-card").value=PAY_CARD;
+const cn=document.getElementById("cfg-card-name");if(cn)cn.value=PAY_CARD_NAME||"Uzcard";
+document.getElementById("cfg-del").value=DELIVERY_FROM;
+document.getElementById("cfg-support").value=SUPPORT_PHONE;
+document.getElementById("cfg-ig").value=SOCIAL.ig||"";
+document.getElementById("cfg-tt").value=SOCIAL.tt||"";
+document.getElementById("cfg-tg").value=SOCIAL.tg||"";
+document.getElementById("cfg-season-name").value=SEASON.name||"Сезонное";
+document.getElementById("cfg-season-w").value=(SEASON.women||[]).join(",");
+document.getElementById("cfg-season-m").value=(SEASON.men||[]).join(",");
+renderHelp();loadAdsEditor()}}
+function updOB(){const n=orders.filter(o=>!o.read||o.status==="pending").length;const b=document.getElementById("ob");if(n>0){b.textContent=n;b.classList.remove("hidden")}else b.classList.add("hidden")}
+function renderOrders(){const list=document.getElementById("o-list"),empty=document.getElementById("o-empty");if(!orders.length){list.innerHTML="";empty.classList.remove("hidden");return}empty.classList.add("hidden");
+list.innerHTML=orders.map(o=>{const items=o.items.map(i=>`${i.name}×${i.qty}`).join(", ");const st={pending:"Ожидает",confirmed:"Одобрен",rejected:"Отклонён"}[o.status]||o.status;
+return`<div class="card rounded-xl p-4 ${o.status==="pending"?"order-pending":o.status==="confirmed"?"order-confirmed":"order-rejected"}">
+<div class="flex justify-between mb-2"><div><span class="font-semibold">№${String(o.id).slice(-6)}</span> ${o.status==="pending"?'<span class="text-xs bg-sky-100 text-sky-800 px-1.5 rounded">Новый</span>':""}<p class="text-xs text-[var(--muted)]">${new Date(o.date).toLocaleString("ru-RU")}</p></div><span class="font-bold text-sky-600">${fp(o.total)}</span></div>
+<p class="text-sm"><strong>${o.name}</strong> · ${o.phone}</p><p class="text-sm">📍 ${o.address}</p>
+<p class="text-xs text-[var(--muted)]">${items}</p>
+${o.screenshot?`<img src="${o.screenshot}" class="max-h-20 rounded border mt-2 cursor-pointer hover:opacity-90" onclick="openScreenshot(this.src)" title="Открыть скриншот">`:""}
+<div class="mt-2 flex flex-wrap items-center gap-2">
+${o.status==="pending"?`<button onclick="confirmO(${o.id})" class="text-xs bg-green-500 text-white px-2.5 py-1 rounded-lg">Одобрить</button><button onclick="rejectO(${o.id})" class="text-xs bg-red-500 text-white px-2.5 py-1 rounded-lg">Отклонить</button>`:""}
+<label class="text-xs flex items-center gap-1">Дней: <input type="number" min="0" max="60" value="${o.deliveryDays??""}" class="w-12 border rounded px-1 py-0.5 text-sm" onchange="setDays(${o.id},this.value)"></label>
+<button onclick="delO(${o.id})" class="text-xs text-red-500 ml-auto">Удалить</button>
+</div></div>`}).join("");updOB()}
+function setDays(id,d){const o=orders.find(x=>x.id===id);if(!o)return;o.deliveryDays=d===""?null:Math.max(0,+d||0);S("sc_orders",orders);if(o.deliveryDays!=null){pushN(o.phone,`📦 Заказ №${String(o.id).slice(-6)}: доставка через ${o.deliveryDays} дн.`);toast("Срок обновлён")}}
+function confirmO(id){
+const o=orders.find(x=>x.id===id);if(!o)return;o.status="confirmed";o.read=true;S("sc_orders",orders);
+pushN(o.phone,`✅ Заказ №${String(o.id).slice(-6)} одобрен! ${fp(o.total)}`);
+const ph=np(o.phone);
+const prevConfirmed=orders.filter(x=>np(x.phone)===ph&&x.status==="confirmed"&&x.id!==o.id).length;
+if(prevConfirmed===0&&users[ph]?.referredBy){
+const refPh=users[ph].referredBy;
+if(users[refPh]){
+users[refPh].pendingRefBonus=true;users[refPh].refCount=(users[refPh].refCount||0)+1;
+pushN(refPh,`🎁 Друг оформил первый заказ! Бонус L1 ${REF_BONUS_PCT}% на следующий заказ.`);
+// L2: referrer of referrer
+const l2=users[refPh].referredBy;
+if(l2&&users[l2]&&REF_L2_PCT>0){
+users[l2].pendingL2Bonus=true;users[l2].refCountL2=(users[l2].refCountL2||0)+1;
+pushN(l2,`🌟 Реферал 2-го уровня сделал заказ! Бонус L2 ${REF_L2_PCT}% на следующий заказ.`);
+}
+S("sc_users",users);
+}
+}
+// promo owner commission
+if(o.promoCode){
+const promo=PROMOS.find(p=>p.code===o.promoCode);
+if(promo&&promo.ownerPhone&&promo.commission>0&&users[promo.ownerPhone]){
+users[promo.ownerPhone].promoEarnings=(users[promo.ownerPhone].promoEarnings||0)+Math.round(o.subtotal*promo.commission/100);
+users[promo.ownerPhone].pendingPromoBonus=true;
+pushN(promo.ownerPhone,`💰 По промокоду ${promo.code} заказ на ${fp(o.subtotal)}. Комиссия ~${promo.commission}%`);
+S("sc_users",users);
+}
+}
+renderOrders();renderStats();toast("Одобрено")}
+function rejectO(id){const o=orders.find(x=>x.id===id);if(!o||!confirm("Отклонить?"))return;o.status="rejected";o.read=true;S("sc_orders",orders);pushN(o.phone,`❌ Заказ №${String(o.id).slice(-6)} отклонён`);renderOrders();renderStats();toast("Отклонено")}
+function delO(id){if(!confirm("Удалить?"))return;orders=orders.filter(o=>o.id!==id);S("sc_orders",orders);renderOrders();renderStats()}
+
+function renderStats(){const conf=orders.filter(o=>o.status==="confirmed");
+document.getElementById("s-orders").textContent=orders.length;document.getElementById("s-rev").textContent=fp(conf.reduce((s,o)=>s+o.total,0));
+const today=new Date().toDateString();document.getElementById("s-today").textContent=fp(conf.filter(o=>new Date(o.date).toDateString()===today).reduce((s,o)=>s+o.total,0));
+document.getElementById("s-prods").textContent=products.length;
+const mo=Date.now()-30*864e5,pc={};conf.filter(o=>+new Date(o.date)>mo).forEach(o=>o.items.forEach(i=>{pc[i.name]=(pc[i.name]||0)+i.qty}));
+const tp=Object.entries(pc).sort((a,b)=>b[1]-a[1]).slice(0,6);
+document.getElementById("s-top-p").innerHTML=tp.length?tp.map(([n,c])=>`<div class="flex justify-between"><span class="truncate">${n}</span><span>${c}</span></div>`).join(""):"<p class='text-[var(--muted)]'>Нет</p>";
+const cs={};conf.forEach(o=>{const k=o.name;cs[k]=(cs[k]||0)+o.total});
+const tc=Object.entries(cs).sort((a,b)=>b[1]-a[1]).slice(0,6);
+document.getElementById("s-top-c").innerHTML=tc.length?tc.map(([n,s])=>`<div class="flex justify-between"><span class="truncate">${n}</span><span>${fp(s)}</span></div>`).join(""):"<p class='text-[var(--muted)]'>Нет</p>";
+const w=Date.now()-7*864e5;
+const d=conf.filter(o=>new Date(o.date).toDateString()===today).reduce((s,o)=>s+o.total,0);
+const ww=conf.filter(o=>+new Date(o.date)>w).reduce((s,o)=>s+o.total,0);
+const mm=conf.filter(o=>+new Date(o.date)>mo).reduce((s,o)=>s+o.total,0);
+document.getElementById("s-per").innerHTML=`<div class="p-3 rounded-xl bg-ink-50 dark:bg-ink-900"><p class="text-[var(--muted)] text-xs">Сегодня</p><p class="font-bold">${fp(d)}</p></div><div class="p-3 rounded-xl bg-ink-50 dark:bg-ink-900"><p class="text-[var(--muted)] text-xs">Неделя</p><p class="font-bold">${fp(ww)}</p></div><div class="p-3 rounded-xl bg-ink-50 dark:bg-ink-900"><p class="text-[var(--muted)] text-xs">Месяц</p><p class="font-bold">${fp(mm)}</p></div>`}
+
+function renderRanksEd(){document.getElementById("ranks-ed").innerHTML=RANKS.map((r,i)=>`<div class="flex flex-wrap gap-1.5 items-center text-sm p-2 border rounded-xl">
+<input value="${r.name}" data-rn="${i}" class="w-20 border rounded px-1.5 py-1 text-sm">
+<input type="number" value="${r.min}" data-rm="${i}" class="w-28 border rounded px-1.5 py-1 text-sm" placeholder="от">
+<input type="number" value="${r.discount}" data-rd="${i}" class="w-14 border rounded px-1.5 py-1 text-sm">%</div>`).join("")}
+function saveRanks(){RANKS=RANKS.map((r,i)=>({...r,name:document.querySelector(`[data-rn="${i}"]`).value||r.name,min:+document.querySelector(`[data-rm="${i}"]`).value||0,discount:+document.querySelector(`[data-rd="${i}"]`).value||0}));const c=L("sc_cfg",{});c.ranks=RANKS;S("sc_cfg",c);toast("Ранги сохранены")}
+function renderODEd(){document.getElementById("od-ed").innerHTML=ORDER_DISCOUNTS.map((d,i)=>`<div class="flex flex-wrap gap-1.5 items-center text-sm p-2 border rounded-xl">от <input type="number" value="${d.min}" data-om="${i}" class="w-28 border rounded px-1.5 py-1 text-sm"> → <input type="number" value="${d.percent}" data-op="${i}" class="w-12 border rounded px-1.5 py-1 text-sm">%</div>`).join("")}
+function saveOD(){ORDER_DISCOUNTS=ORDER_DISCOUNTS.map((d,i)=>({min:+document.querySelector(`[data-om="${i}"]`).value||0,percent:+document.querySelector(`[data-op="${i}"]`).value||0})).sort((a,b)=>a.min-b.min);const c=L("sc_cfg",{});c.od=ORDER_DISCOUNTS;S("sc_cfg",c);toast("Скидки сохранены")}
+function addHelp(){
+const ph=np(document.getElementById("help-ph").value);
+const pw=document.getElementById("help-pw").value;
+if(ph.length<12){toast("Введите телефон");return}
+if(!pw||pw.length<4){toast("Придумайте пароль (мин. 4 символа)");return}
+if(helpers.some(h=>h.phone===ph)){toast("Уже добавлен");return}
+helpers.push({phone:ph,password:pw});S("sc_help",helpers);
+document.getElementById("help-pw").value="";renderHelp();toast("Помощник добавлен")}
+function remHelp(ph){helpers=helpers.filter(h=>h.phone!==ph);S("sc_help",helpers);renderHelp();toast("Удалён")}
+function renderHelp(){
+// migrate old format
+helpers=helpers.map(h=>typeof h==="string"?{phone:h,password:"helper123"}:h);
+S("sc_help",helpers);
+document.getElementById("help-list").innerHTML=helpers.length?helpers.map(h=>`<div class="flex justify-between items-center p-2 border rounded-lg gap-2">
+<span class="truncate">${fmtPh(h.phone)}</span>
+<button onclick="remHelp('${h.phone}')" class="text-red-500 text-xs shrink-0">Удалить</button>
+</div>`).join(""):"<p class='text-[var(--muted)]'>Нет помощников</p>"}
+function saveCfg(){
+PAY_CARD=document.getElementById("cfg-card").value.trim()||PAY_CARD;
+PAY_CARD_NAME=document.getElementById("cfg-card-name")?.value.trim()||PAY_CARD_NAME||"Uzcard";
+DELIVERY_FROM=+document.getElementById("cfg-del").value||25000;
+SUPPORT_PHONE=document.getElementById("cfg-support").value.trim()||SUPPORT_PHONE;
+SOCIAL={ig:document.getElementById("cfg-ig").value.trim(),tt:document.getElementById("cfg-tt").value.trim(),tg:document.getElementById("cfg-tg").value.trim()};
+SEASON={
+name:document.getElementById("cfg-season-name").value.trim()||"Сезонное",
+women:(document.getElementById("cfg-season-w").value||"").split(",").map(x=>+x.trim()).filter(Boolean),
+men:(document.getElementById("cfg-season-m").value||"").split(",").map(x=>+x.trim()).filter(Boolean)
+};
+const c=L("sc_cfg",{});c.card=PAY_CARD;c.cardName=PAY_CARD_NAME;c.del=DELIVERY_FROM;c.support=SUPPORT_PHONE;c.social=SOCIAL;c.season=SEASON;c.ads=ADS;
+if(c.ranks)c.ranks=RANKS;if(c.od)c.od=ORDER_DISCOUNTS;
+S("sc_cfg",c);applySocial();toast("Настройки сохранены")}
+function adMediaHtml(ad){
+if(!ad||!ad.media)return"";
+if(ad.type==="video")return`<video src="${ad.media}" autoplay muted loop playsinline></video>`;
+return`<img src="${ad.media}" alt="ad">`;
+}
+function fillAdEl(el,ad){
+if(!el)return;
+if(!ad||!ad.enabled){el.classList.add("ad-hidden");return}
+el.classList.remove("ad-hidden");
+if(ad.media){
+el.classList.add("has-ad");
+el.innerHTML=`<span class="ad-label">Реклама</span>${adMediaHtml(ad)}`;
+if(ad.link){el.style.cursor="pointer";el.onclick=()=>window.open(ad.link,"_blank")}
+else{el.style.cursor="";el.onclick=null}
+}else{
+el.classList.remove("has-ad");
+el.innerHTML=`<span class="ad-label">Реклама</span><span>Место для рекламы</span>`;
+el.onclick=null;
+}
+}
+function renderAds(){
+if(!ADS.slots)ADS=normalizeAds(ADS);
+const byPlace={ "home-top":[], "home-bottom":[], "catalog":[] };
+ADS.slots.forEach(s=>{if(byPlace[s.place])byPlace[s.place].push(s)});
+["home-top","home-bottom","catalog"].forEach(place=>{
+const list=byPlace[place]||[];
+const primary=list.find(s=>s.enabled)||list[0];
+const fixed=document.querySelector(`.ad-slot[data-ad="${place}"]`);
+fillAdEl(fixed, primary&&primary.enabled?primary:null);
+const extraIds={ "home-top":"home-extra-ads", "home-bottom":"home-bottom-extra-ads", "catalog":"catalog-extra-ads" };
+const box=document.getElementById(extraIds[place]);
+if(!box)return;
+const extras=list.filter(s=>s!==primary&&s.enabled);
+box.innerHTML=extras.map(ad=>{
+const media=ad.media?adMediaHtml(ad):`<span class="text-xs">Место для рекламы</span>`;
+const click=ad.link?`onclick="window.open('${ad.link.replace(/'/g,"\\'")}','_blank')" style="cursor:pointer"`:"";
+return`<div class="ad-slot ad-tall has-ad" ${click}><span class="ad-label">Реклама</span>${media}</div>`;
+}).join("");
+});
+}
+function setAdMedia(id,e){
+const f=e.target.files[0];if(!f)return;
+const isVideo=f.type.startsWith("video/");
+const max=isVideo?4e6:9e5;
+if(f.size>10*1024*1024){toast("Макс 10 МБ");e.target.value="";return}
+const r=new FileReader();r.onload=ev=>{
+const slot=ADS.slots.find(s=>s.id===id);if(!slot)return;
+slot.media=ev.target.result;slot.type=isVideo?"video":"image";
+loadAdsEditor();toast((isVideo?"Видео":"Фото")+" загружено · нажмите «Сохранить»");
+};r.readAsDataURL(f);e.target.value="";
+}
+function clearAdMedia(id){
+const slot=ADS.slots.find(s=>s.id===id);if(!slot)return;
+slot.media="";slot.type="image";loadAdsEditor();toast("Медиа очищено");
+}
+function toggleAdEnabled(id){
+const slot=ADS.slots.find(s=>s.id===id);if(!slot)return;
+slot.enabled=!slot.enabled;loadAdsEditor();
+}
+function setAdLink(id,val){
+const slot=ADS.slots.find(s=>s.id===id);if(slot)slot.link=(val||"").trim();
+}
+function addAdSlot(place){
+const id=place+"_"+Date.now();
+ADS.slots.push({id,place,enabled:true,media:"",type:"image",link:""});
+loadAdsEditor();toast("Слот добавлен");
+}
+function removeAdSlot(id){
+const core=["home-top","home-bottom","catalog"];
+if(core.includes(id)){const s=ADS.slots.find(x=>x.id===id);if(s){s.enabled=false;s.media="";}loadAdsEditor();toast("Слот скрыт");return}
+ADS.slots=ADS.slots.filter(s=>s.id!==id);loadAdsEditor();toast("Слот удалён");
+}
+function saveAds(){
+const c=L("sc_cfg",{});c.ads=ADS;S("sc_cfg",c);renderAds();toast("Реклама сохранена")}
+function loadAdsEditor(){
+if(!ADS.slots)ADS=normalizeAds(ADS);
+const el=document.getElementById("ads-editor");if(!el)return;
+el.innerHTML=ADS.slots.map(s=>{
+const label=AD_PLACES[s.place]||s.place;
+const prev=s.media?(s.type==="video"?`<video src="${s.media}" class="w-full h-full object-cover" muted></video>`:`<img src="${s.media}" class="w-full h-full object-cover">`):`<span class="text-xs text-[var(--muted)]">пусто</span>`;
+const on=s.enabled;
+return`<div class="border rounded-xl p-3 space-y-2 ${on?"":"opacity-50"}">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-sm font-medium">${label}</span>
+<div class="flex gap-2 text-xs">
+<button type="button" onclick="toggleAdEnabled('${s.id}')" class="px-2 py-1 rounded-lg border">${on?"👁 Скрыть место":"Показать место"}</button>
+<button type="button" onclick="removeAdSlot('${s.id}')" class="px-2 py-1 rounded-lg text-red-500 border border-red-200">Удалить</button>
+</div>
+</div>
+<div class="h-24 rounded-lg bg-ink-100 dark:bg-ink-800 overflow-hidden flex items-center justify-center">${prev}</div>
+<div class="flex flex-wrap gap-2">
+<label class="border px-2 py-1.5 rounded-lg text-xs cursor-pointer">📷 Фото / 🎬 Видео<input type="file" accept="image/*,video/*" class="hidden" onchange="setAdMedia('${s.id}',event)"></label>
+<button type="button" onclick="clearAdMedia('${s.id}')" class="text-xs text-[var(--muted)] border px-2 py-1.5 rounded-lg">Очистить медиа</button>
+</div>
+<input class="w-full border rounded-lg px-2 py-1.5 text-xs" placeholder="Ссылка по клику (необяз.)" value="${(s.link||"").replace(/"/g,"&quot;")}" oninput="setAdLink('${s.id}',this.value)">
+</div>`}).join("")||"<p class='text-sm text-[var(--muted)]'>Нет слотов — добавьте кнопками ниже</p>";
+}
+
+function renderAP(){
+const list=apFilter==="all"?products:products.filter(p=>p.category===apFilter);
+document.getElementById("ap-list").innerHTML=list.length?list.map(p=>`<tr class="border-t">
+<td class="px-3 py-2"><div class="flex items-center gap-2"><img src="${p.image}" class="w-9 h-11 object-cover rounded cursor-pointer hover:ring-2 hover:ring-sky-600" loading="lazy" onclick="editP(${p.id})" title="Нажмите, чтобы редактировать"><div><span class="font-medium cursor-pointer hover:text-sky-600" onclick="editP(${p.id})">${p.name}</span>${isSale(p)?' <span class="text-xs text-red-500 font-bold">SALE</span>':""}<p class="text-xs text-[var(--muted)]">${CAT[p.category]||p.category}</p></div></div></td>
+<td class="px-3 py-2">${fp(p.price)}${isSale(p)?`<br><span class="text-xs line-through text-[var(--muted)]">${fp(p.oldPrice)}</span>`:""}</td>
+<td class="px-3 py-2 text-right space-x-1"><button onclick="editP(${p.id})" class="text-sky-600 text-sm">Изменить</button><button onclick="delP(${p.id})" class="text-red-500 text-sm">Удалить</button></td></tr>`).join(""):`<tr><td colspan="3" class="px-3 py-8 text-center text-[var(--muted)]">Нет товаров в этой категории</td></tr>`}
+function showProdForm(){document.getElementById("pf-title").textContent="Новый товар";document.getElementById("pf-id").value="";document.getElementById("prod-form").querySelector("form").reset();document.getElementById("pf-chart").value="";document.getElementById("pf-img-prev").classList.add("hidden");document.getElementById("prod-form").classList.remove("hidden")}
+function hideProdForm(){document.getElementById("prod-form").classList.add("hidden")}
+function uploadProdImg(e){
+const f=e.target.files[0];if(!f)return;
+if(f.size>10*1024*1024){toast("Макс 10 МБ");e.target.value="";return}
+const r=new FileReader();r.onload=ev=>{
+document.getElementById("pf-img").value=ev.target.result;
+document.getElementById("pf-img-el").src=ev.target.result;
+document.getElementById("pf-img-prev").classList.remove("hidden");
+toast("Фото загружено");
+};r.readAsDataURL(f);e.target.value="";
+}
+function editP(id){const p=products.find(x=>x.id===id);if(!p)return;document.getElementById("pf-title").textContent="Редактировать / SALE";document.getElementById("pf-id").value=p.id;
+document.getElementById("pf-name").value=p.name;document.getElementById("pf-price").value=p.price;document.getElementById("pf-old").value=p.oldPrice||"";
+document.getElementById("pf-cat").value=p.category;document.getElementById("pf-sizes").value=(p.sizes||[]).join(", ");document.getElementById("pf-img").value=p.image||"";document.getElementById("pf-desc").value=p.description||"";
+document.getElementById("pf-chart").value=chartToText(p.sizeChart);
+if(p.image){document.getElementById("pf-img-el").src=p.image;document.getElementById("pf-img-prev").classList.remove("hidden")}else document.getElementById("pf-img-prev").classList.add("hidden");
+document.getElementById("prod-form").classList.remove("hidden");window.scrollTo({top:0,behavior:"smooth"})}
+function parseChart(text){
+const chart={};if(!text||!text.trim())return null;
+text.trim().split("\n").forEach(line=>{
+const parts=line.split("|").map(x=>x.trim()).filter(Boolean);if(parts.length<2)return;
+const size=parts[0];chart[size]={};
+parts.slice(1).forEach(p=>{const m=p.match(/^(.+?):\s*([\d.]+)/);if(m)chart[size][m[1].trim()]=parseFloat(m[2])})});
+return Object.keys(chart).length?chart:null}
+function chartToText(chart){
+if(!chart||typeof chart!=="object")return"";
+return Object.entries(chart).map(([sz,vals])=>sz+" | "+Object.entries(vals).map(([k,v])=>k+":"+v).join(" | ")).join("\n")}
+function chartHtml(chart){
+if(!chart||!Object.keys(chart).length)return"";
+const labels=Object.keys(Object.values(chart)[0]||{});
+let h=`<div class="mt-4 overflow-x-auto"><p class="text-sm font-medium mb-2">Размеры в см</p><table class="text-xs border-collapse w-full min-w-[280px]"><thead><tr class="bg-ink-50 dark:bg-ink-900"><th class="border border-[var(--border)] px-2 py-1.5 text-left">Размер</th>${labels.map(l=>`<th class="border border-[var(--border)] px-2 py-1.5">${l}</th>`).join("")}</tr></thead><tbody>`;
+Object.entries(chart).forEach(([sz,vals])=>{h+=`<tr><td class="border border-[var(--border)] px-2 py-1.5 font-medium">${sz}</td>${labels.map(l=>`<td class="border border-[var(--border)] px-2 py-1.5 text-center">${vals[l]??"—"}</td>`).join("")}</tr>`});
+h+="</tbody></table></div>";return h}
+function saveProd(e){e.preventDefault();const id=document.getElementById("pf-id").value;
+const cat=document.getElementById("pf-cat").value;
+let sizeChart=parseChart(document.getElementById("pf-chart").value);
+if(cat==="bags_w"||cat==="bags_m"||cat==="acc_w"||cat==="jewelry")sizeChart=null;
+const price=+document.getElementById("pf-price").value;
+const oldRaw=document.getElementById("pf-old").value;
+const oldPrice=oldRaw===""?0:+oldRaw;
+const data={name:document.getElementById("pf-name").value.trim(),price,oldPrice,category:cat,sizes:document.getElementById("pf-sizes").value.split(",").map(s=>s.trim()).filter(Boolean),image:document.getElementById("pf-img").value.trim()||"https://placehold.co/400x500?text=Tobacco",description:document.getElementById("pf-desc").value.trim(),sizeChart};
+if(id){const i=products.findIndex(x=>x.id===+id);if(i>=0)products[i]={...products[i],...data}}else products.push({id:products.length?Math.max(...products.map(p=>p.id))+1:1,...data,likes:0,dislikes:0,reviews:[]});
+S("sc_prods",products);hideProdForm();renderAP();renderFeat();renderCatalog();renderStats();renderNews();
+toast(oldPrice>price?"Сохранено · SALE активен":"Сохранено")}
+function delP(id){if(!confirm("Удалить?"))return;products=products.filter(p=>p.id!==id);S("sc_prods",products);renderAP();renderFeat();renderStats()}
+function exportProds(){const b=new Blob([JSON.stringify(products,null,2)],{type:"application/json"});const u=URL.createObjectURL(b);const a=document.createElement("a");a.href=u;a.download="products.json";a.click()}
+function importProds(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(Array.isArray(d)){products=d;S("sc_prods",products);renderAP();renderFeat();toast("Импорт")}}catch{toast("Ошибка")}};r.readAsText(f);e.target.value=""}
+
+function renderClients(){
+const el=document.getElementById("clients-list");
+const rows=Object.entries(users).map(([ph,u])=>{
+const spent=getSpent(ph),rank=getRank(spent),rid=u.refId||genRefId(ph);
+if(!u.refId){u.refId=rid}
+const refs=Object.entries(users).filter(([,x])=>x.referredBy===ph);
+const refNames=refs.length?refs.map(([rph,ru])=>`${ru.name||"Клиент"} (${ru.refId||genRefId(rph)})`).join(", "):"—";
+const invitedBy=u.referredBy&&users[u.referredBy]?`${users[u.referredBy].name} (${users[u.referredBy].refId||""})`:"напрямую";
+const promos=(u.promosUsed||[]).join(", ")||u.lastPromo||"—";
+return`<tr class="border-t align-top">
+<td class="px-3 py-2 font-mono text-xs font-semibold text-sky-600">${rid}</td>
+<td class="px-3 py-2">${u.name||"—"}<div class="text-xs text-[var(--muted)]">${u.telegram?("@"+u.telegram):"—"}</div></td>
+<td class="px-3 py-2 text-xs">${fmtPh(ph)}</td>
+<td class="px-3 py-2">${fp(spent)}</td>
+<td class="px-3 py-2">${rank.name}</td>
+<td class="px-3 py-2 text-xs"><span class="font-medium">${refs.length}</span><div class="text-[var(--muted)] mt-0.5 max-w-[160px]">${refNames}</div></td>
+<td class="px-3 py-2 text-xs">${invitedBy}</td>
+<td class="px-3 py-2 text-xs font-mono">${promos}</td>
+<td class="px-3 py-2 text-xs">${u.pendingRefBonus?("L1 "+REF_BONUS_PCT+"%"):u.pendingL2Bonus?("L2 "+REF_L2_PCT+"%"):"—"}</td>
+<td class="px-3 py-2"><button onclick="openClientProfile('${ph}')" class="text-sky-600 text-xs whitespace-nowrap">Профиль →</button></td>
+</tr>`});
+S("sc_users",users);
+el.innerHTML=rows.length?rows.join(""):"<tr><td colspan='10' class='px-3 py-8 text-center text-[var(--muted)]'>Нет клиентов</td></tr>"}
+function saveRefCfg(){
+FIRST_ORDER_PCT=+document.getElementById("cfg-first").value||0;
+REF_NEW_PCT=+document.getElementById("cfg-ref-new").value||0;
+REF_BONUS_PCT=+document.getElementById("cfg-ref-bonus").value||0;
+REF_L2_PCT=+(document.getElementById("cfg-ref-l2")?.value)||0;
+const c=L("sc_cfg",{});c.first=FIRST_ORDER_PCT;c.refNew=REF_NEW_PCT;c.refBonus=REF_BONUS_PCT;c.refL2=REF_L2_PCT;S("sc_cfg",c);renderNews();toast("Сохранено")}
+function addPromo(){
+const code=(document.getElementById("pc-code").value||"").toUpperCase().trim();
+const pct=+document.getElementById("pc-pct").value||0;
+const owner=np(document.getElementById("pc-owner").value);
+const comm=+document.getElementById("pc-comm").value||0;
+if(!code||pct<1){toast("Код и % скидки");return}
+if(PROMOS.some(p=>p.code===code)){toast("Такой код уже есть");return}
+PROMOS.push({code,pct,ownerPhone:owner.length>=12?owner:null,commission:comm,uses:0});
+const c=L("sc_cfg",{});c.promos=PROMOS;S("sc_cfg",c);
+document.getElementById("pc-code").value="";document.getElementById("pc-pct").value="";renderPromoList();toast("Промокод добавлен")}
+function remPromo(code){PROMOS=PROMOS.filter(p=>p.code!==code);const c=L("sc_cfg",{});c.promos=PROMOS;S("sc_cfg",c);renderPromoList()}
+function renderPromoList(){
+const el=document.getElementById("promo-list");if(!el)return;
+el.innerHTML=PROMOS.length?PROMOS.map(p=>`<div class="flex flex-wrap justify-between gap-2 p-2 border rounded-lg text-sm">
+<span><strong class="text-sky-600">${p.code}</strong> −${p.pct}% клиенту · владелец ${p.ownerPhone?fmtPh(p.ownerPhone):"—"} · комиссия ${p.commission||0}% · использований: ${p.uses||0}</span>
+<button onclick="remPromo('${p.code}')" class="text-red-500 text-xs">Удалить</button></div>`).join(""):"<p class='text-[var(--muted)]'>Нет промокодов</p>"}
+let viewingClient=null;
+function openClientProfile(ph){
+if(!isAdmin)return;
+viewingClient=ph;
+const u=users[ph];if(!u){toast("Клиент не найден");return}
+const spent=getSpent(ph),rank=getRank(spent),rid=u.refId||genRefId(ph);
+document.getElementById("cp-name").textContent=u.name||"Клиент";
+document.getElementById("cp-phone").textContent=fmtPh(ph);
+document.getElementById("cp-tg").textContent=u.telegram?("@"+u.telegram):"Telegram не указан";
+document.getElementById("cp-meta").textContent=`ID ${rid} · потрачено ${fp(spent)} · скидка ранга ${rank.discount}%`;
+const invitedBy=u.referredBy&&users[u.referredBy]?`Пришёл по реф. ${users[u.referredBy].name} (${users[u.referredBy].refId||""})`:"Пришёл напрямую";
+document.getElementById("cp-source").textContent=invitedBy+(u.lastPromo?` · промокод ${u.lastPromo}`:"");
+const rb=document.getElementById("cp-rank");rb.textContent=rank.name;rb.className="px-2.5 py-0.5 rounded-full text-xs font-bold text-white "+rank.cls;
+const l=document.getElementById("cp-letter"),img=document.getElementById("cp-img");
+if(u.avatar){img.src=u.avatar;img.classList.remove("hidden");l.classList.add("hidden")}else{l.textContent=(u.name||"?")[0].toUpperCase();l.classList.remove("hidden");img.classList.add("hidden")}
+const refs=Object.entries(users).filter(([,x])=>x.referredBy===ph);
+document.getElementById("cp-refs").innerHTML=refs.length?refs.map(([rph,ru])=>`<button class="block text-left text-sky-600 py-0.5" onclick="openClientProfile('${rph}')">${ru.name||"Клиент"} · ${ru.refId||""}</button>`).join(""):"Никто не регистрировался по его ссылке";
+document.getElementById("cp-promos").textContent=(u.promosUsed||[]).join(", ")||u.lastPromo||"Не использовал";
+const list=orders.filter(o=>np(o.phone)===ph);
+const el=document.getElementById("cp-orders"),empty=document.getElementById("cp-orders-empty");
+if(!list.length){el.innerHTML="";empty.classList.remove("hidden")}else{empty.classList.add("hidden");el.innerHTML=list.map(orderCardHtml).join("")}
+showView("cprofile");
+}
+function closeClientProfile(){viewingClient=null;showView("admin");switchAdminTab("clients")}
+function renderBotTpl(){
+document.getElementById("bot-tpl-list").innerHTML=BOT_TPL.length?BOT_TPL.map((t,i)=>`<div class="flex justify-between gap-2 p-2 border rounded-lg items-start"><div><span class="font-medium text-sky-600">${t.key}</span><p class="text-[var(--muted)]">${t.ans}</p></div><button onclick="remBotTpl(${i})" class="text-red-500 text-xs shrink-0">✕</button></div>`).join(""):"<p class='text-[var(--muted)]'>Нет заготовок</p>"}
+function addBotTpl(){
+const k=document.getElementById("bot-key").value.trim().toLowerCase(),a=document.getElementById("bot-ans").value.trim();
+if(!k||!a){toast("Заполните ключ и ответ");return}
+BOT_TPL.push({key:k,ans:a});const c=L("sc_cfg",{});c.botTpl=BOT_TPL;S("sc_cfg",c);
+document.getElementById("bot-key").value="";document.getElementById("bot-ans").value="";renderBotTpl();toast("Добавлено")}
+function remBotTpl(i){BOT_TPL.splice(i,1);const c=L("sc_cfg",{});c.botTpl=BOT_TPL;S("sc_cfg",c);renderBotTpl()}
+
+// Chat: bot + admin support (TG-like)
+let chatMode="bot", supportChats=L("sc_chats",{}), adminChatUser=null, voiceRec=null, voiceChunks=[], recording=false;
+function toggleChat(){
+const box=document.getElementById("chat-box");
+box.classList.toggle("hidden");
+if(!box.classList.contains("hidden")){renderClientChat();updChatUnread()}
+}
+function setChatMode(m){
+chatMode=m;
+document.getElementById("cm-bot").className="px-2 py-1 rounded-lg "+(m==="bot"?"bg-white/20":"");
+document.getElementById("cm-admin").className="px-2 py-1 rounded-lg "+(m==="admin"?"bg-white/20":"");
+document.getElementById("chat-media-btns").classList.toggle("hidden",m!=="admin");
+renderClientChat();
+}
+function renderClientChat(){
+const el=document.getElementById("chat-msgs");if(!el)return;el.innerHTML="";
+if(chatMode==="bot"){
+addBotMsg("Здравствуйте! Я Sky.Cloth Bot 👋 Спросите про вкусы, доставку, оплату. Или переключитесь на «Админ» для живого чата.");
+return;
+}
+if(!currentUser){addBotMsg("Войдите в аккаунт, чтобы писать админу.");return}
+const msgs=supportChats[currentUser]||[];
+msgs.forEach(m=>appendSupportBubble(el,m,m.from==="user"));
+el.scrollTop=el.scrollHeight;
+// mark admin msgs read
+(msgs||[]).forEach(m=>{if(m.from==="admin")m.read=true});S("sc_chats",supportChats);updChatUnread();
+}
+function appendSupportBubble(el,m,mine){
+let body="";
+if(m.type==="text")body=m.text||"";
+else if(m.type==="image")body=`<img src="${m.data}" class="max-w-full rounded-lg max-h-40 cursor-pointer" onclick="window.open(this.src)">`;
+else if(m.type==="voice")body=`<audio controls src="${m.data}" class="max-w-full"></audio>`;
+el.innerHTML+=`<div class="flex ${mine?"justify-end":"justify-start"}"><div class="${mine?"btn-sky":"bg-ink-100 dark:bg-ink-800"} rounded-2xl ${mine?"rounded-br-md":"rounded-bl-md"} px-3 py-2 max-w-[85%]">${body}<div class="text-[10px] opacity-60 mt-0.5">${new Date(m.date).toLocaleTimeString("ru-RU",{hour:"2-digit",minute:"2-digit"})}</div></div></div>`;
+}
+function addBotMsg(t){const el=document.getElementById("chat-msgs");el.innerHTML+=`<div class="flex justify-start"><div class="bg-ink-100 dark:bg-ink-800 rounded-2xl rounded-bl-md px-3 py-2 max-w-[85%] whitespace-pre-wrap">${t}</div></div>`;el.scrollTop=el.scrollHeight}
+function addUserMsg(t){const el=document.getElementById("chat-msgs");el.innerHTML+=`<div class="flex justify-end"><div class="btn-primary rounded-2xl rounded-br-md px-3 py-2 max-w-[85%]">${t}</div></div>`;el.scrollTop=el.scrollHeight}
+function botReply(q){
+const t=q.toLowerCase().trim();
+for(const tpl of BOT_TPL){if(t.includes(tpl.key.toLowerCase()))return tpl.ans}
+if(/вкус|затяж|waka|elf|электрон|вейп|табак|кальян|уголь|сигар/.test(t))return "Откройте товар и выберите вкус / вариант кнопками. Выберите размер на странице товара. Поддержка: "+SUPPORT_PHONE;
+if(/доставк|курьер|когда|срок/.test(t))return "Доставка курьером — от "+fp(DELIVERY_FROM)+", оплата курьеру при получении (не входит в предоплату). Самовывоз бесплатно.";
+if(/оплат|карт|промокод|скрин/.test(t))return "Оплата на карту + скрин. Промокод вводите при оформлении. Скидки считаются автоматически.";
+if(/скидк|ранг|рефер|промо/.test(t))return `Первый заказ ${FIRST_ORDER_PCT}%, реферал ${REF_NEW_PCT}%, L1 бонус ${REF_BONUS_PCT}%, L2 ${REF_L2_PCT}%. Промокоды — от админа/стримеров.`;
+if(/админ|оператор/.test(t))return "Переключитесь на вкладку «Админ» в этом чате — напишите живому оператору (фото и голосовые тоже можно).";
+return "Спросите про доставку, оплату, вкусы, скидки — или откройте чат «Админ». "+SUPPORT_PHONE;
+}
+function sendChat(){
+const inp=document.getElementById("chat-input");const q=inp.value.trim();if(!q)return;inp.value="";
+if(chatMode==="bot"){addUserMsg(q);setTimeout(()=>addBotMsg(botReply(q)),350);return}
+if(!currentUser){toast("Войдите");return}
+pushSupportMsg(currentUser,{from:"user",type:"text",text:q,date:new Date().toISOString(),read:false});
+renderClientChat();
+}
+function sendChatPhoto(e){
+if(chatMode!=="admin"||!currentUser){toast("Войдите и выберите чат с админом");e.target.value="";return}
+const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){toast("Макс 10 МБ");return}
+const r=new FileReader();r.onload=ev=>{pushSupportMsg(currentUser,{from:"user",type:"image",data:ev.target.result,date:new Date().toISOString(),read:false});renderClientChat()};r.readAsDataURL(f);e.target.value="";
+}
+function toggleVoice(){
+if(chatMode!=="admin"||!currentUser){toast("Войдите и вкладка Админ");return}
+if(recording){stopVoice();return}
+if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){toast("Микрофон недоступен");return}
+navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
+voiceChunks=[];voiceRec=new MediaRecorder(stream);voiceRec.ondataavailable=e=>{if(e.data.size)voiceChunks.push(e.data)};
+voiceRec.onstop=()=>{const blob=new Blob(voiceChunks,{type:"audio/webm"});const r=new FileReader();r.onload=ev=>{pushSupportMsg(currentUser,{from:"user",type:"voice",data:ev.target.result,date:new Date().toISOString(),read:false});renderClientChat()};r.readAsDataURL(blob);stream.getTracks().forEach(t=>t.stop())};
+voiceRec.start();recording=true;document.getElementById("voice-btn").textContent="⏹ Стоп";toast("Запись...")}).catch(()=>toast("Нет доступа к микрофону"))}
+function stopVoice(){if(voiceRec&&recording){voiceRec.stop();recording=false;document.getElementById("voice-btn").textContent="🎤 Голос"}}
+function pushSupportMsg(phone,msg){
+if(!supportChats[phone])supportChats[phone]=[];
+supportChats[phone].push(msg);S("sc_chats",supportChats);updChatUnread();
+}
+function updChatUnread(){
+const badge=document.getElementById("chat-unread");if(!badge)return;
+if(!currentUser){badge.classList.add("hidden");return}
+const n=(supportChats[currentUser]||[]).filter(m=>m.from==="admin"&&!m.read).length;
+if(n>0){badge.textContent=n;badge.classList.remove("hidden")}else badge.classList.add("hidden");
+}
+function renderAdminChats(){
+supportChats=L("sc_chats",{});
+const list=document.getElementById("admin-chat-list");if(!list)return;
+const keys=Object.keys(supportChats).filter(k=>(supportChats[k]||[]).length);
+if(!keys.length){list.innerHTML="<p class='p-3 text-[var(--muted)]'>Пока нет сообщений</p>";return}
+list.innerHTML=keys.map(ph=>{
+const u=users[ph];const last=(supportChats[ph]||[]).slice(-1)[0];
+const unread=(supportChats[ph]||[]).filter(m=>m.from==="user"&&!m.read).length;
+const preview=last?.type==="text"?(last.text||"").slice(0,40):last?.type==="image"?"📷 Фото":last?.type==="voice"?"🎤 Голос":"";
+return`<button onclick="openAdminChat('${ph}')" class="w-full text-left px-3 py-2.5 border-b hover:bg-sky-50 dark:hover:bg-sky-950 ${adminChatUser===ph?"bg-sky-50 dark:bg-sky-950":""}">
+<div class="flex justify-between"><span class="font-medium">${u?.name||fmtPh(ph)}</span>${unread?`<span class="bg-red-500 text-white text-[10px] px-1.5 rounded-full">${unread}</span>`:""}</div>
+<p class="text-xs text-[var(--muted)] truncate">${preview}</p></button>`}).join("");
+if(adminChatUser)openAdminChat(adminChatUser);
+}
+function openAdminChat(ph){
+adminChatUser=ph;supportChats=L("sc_chats",{});
+const u=users[ph];document.getElementById("admin-chat-title").textContent=(u?.name||"Клиент")+" · "+fmtPh(ph);
+const el=document.getElementById("admin-chat-msgs");el.innerHTML="";
+(supportChats[ph]||[]).forEach(m=>{
+appendSupportBubble(el,m,m.from==="admin");
+if(m.from==="user")m.read=true;
+});
+S("sc_chats",supportChats);el.scrollTop=el.scrollHeight;renderAdminChats();
+}
+function adminSendChat(){
+if(!adminChatUser)return;
+const inp=document.getElementById("admin-chat-input");const q=inp.value.trim();if(!q)return;inp.value="";
+pushSupportMsg(adminChatUser,{from:"admin",type:"text",text:q,date:new Date().toISOString(),read:false});
+pushN(adminChatUser,"💬 Новое сообщение от поддержки");
+openAdminChat(adminChatUser);
+}
+function adminSendPhoto(e){
+if(!adminChatUser)return;const f=e.target.files[0];if(!f)return;if(f.size>10*1024*1024){toast("Макс 10 МБ");return}
+const r=new FileReader();r.onload=ev=>{pushSupportMsg(adminChatUser,{from:"admin",type:"image",data:ev.target.result,date:new Date().toISOString(),read:false});pushN(adminChatUser,"💬 Фото от поддержки");openAdminChat(adminChatUser)};r.readAsDataURL(f);e.target.value="";
+}
+
+function fillTgFields(){
+const u=getTgUser();
+const un=(u&&u.username)||"";
+const nm=u?[u.first_name,u.last_name].filter(Boolean).join(" ").trim():"";
+const aTg=document.getElementById("a-tg");
+const aNm=document.getElementById("a-nm");
+const cTg=document.getElementById("ctg");
+const cName=document.getElementById("cname");
+if(aTg&&un)aTg.value="@"+un;
+if(aNm&&nm)aNm.value=nm;
+if(cTg&&un)cTg.value="@"+un;
+if(cName&&nm&&!cName.value)cName.value=nm;
+let ph=localStorage.getItem("sc_tg_phone")||"";
+if(u&&u.phone_number)ph=String(u.phone_number).replace(/\D/g,"");
+if(ph){
+localStorage.setItem("sc_tg_phone",ph);
+const pretty=fmtPh(ph);
+const aPh=document.getElementById("a-ph");
+const cPh=document.getElementById("cphone");
+if(aPh)aPh.value=pretty;
+if(cPh)cPh.value=pretty;
+}
+}
+function requestTgContact(){
+try{
+const tg=window.Telegram&&Telegram.WebApp;
+if(!tg)return;
+if(typeof tg.requestContact==="function"){
+tg.requestContact((shared)=>{
+if(shared)toast("Контакт получен");
+});
+}
+tg.onEvent&&tg.onEvent("contactRequested",function(ev){
+try{
+const st=ev&&ev.status;
+if(st&&st!=="sent")return;
+}catch(e){}
+});
+/* some clients use WebAppData */
+if(tg.MainButton){/* no-op */}
+}catch(e){console.log(e)}
+}
+function applyTgPhoneFromInit(){
+try{
+const tg=window.Telegram&&Telegram.WebApp;
+if(!tg)return;
+/* if user already shared via bot, phone may be unavailable in WebApp without requestContact result */
+const u=getTgUser();
+if(u&&u.phone_number){
+localStorage.setItem("sc_tg_phone",String(u.phone_number).replace(/\D/g,""));
+}
+}catch(e){}
+}
+
+
+try{
+if(window.Telegram&&Telegram.WebApp){
+  const tg=Telegram.WebApp;
+  tg.ready();
+  tg.expand();
+  try{tg.disableVerticalSwipes()}catch(e){}
+  try{tg.setHeaderColor("#0f172a");tg.setBackgroundColor("#f8fafc")}catch(e){}
+  document.documentElement.style.setProperty("--tg-safe-top", (tg.safeAreaInset?.top||0)+"px");
+  document.body.style.overscrollBehaviorY="none";
+  document.documentElement.style.overscrollBehaviorY="none";
+  try{
+    tg.onEvent("contactRequested", function(info){
+      /* status sent | cancelled */
+    });
+  }catch(e){}
+}
+init();
+applyTgPhoneFromInit();
+fillTgFields();
+/* при первом заходе просим контакт (телефон) */
+setTimeout(function(){
+  if(!localStorage.getItem("sc_tg_phone") && !currentUser){
+    try{
+      const tg=window.Telegram&&Telegram.WebApp;
+      if(tg&&typeof tg.requestContact==="function"){
+        tg.requestContact();
+      }
+    }catch(e){}
+  }
+  fillTgFields();
+},800);
+}catch(e){console.error("init",e);document.body&&(document.body.innerHTML+='<p style="padding:20px;color:red">Ошибка загрузки. Обновите страницу.</p>')}
+</script>
+</body>
+</html>
